@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FisioPay - Gestão Inteligente de Finanças</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #f5f5f5;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            --border-color: #e0e0e0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --purple: #8b5cf6;
+            --cyan: #06b6d4;
+            --pink: #ec4899;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-tertiary: #0f172a;
+                --text-primary: #ffffff;
+                --text-secondary: #cbd5e1;
+                --text-tertiary: #94a3b8;
+                --border-color: #334155;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* LOGIN SCREEN */
+        .login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--info) 0%, var(--purple) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-screen.hidden {
+            display: none;
+        }
+
+        .login-box {
+            background-color: var(--bg-primary);
+            border-radius: 16px;
+            padding: 2.5rem;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .login-box h1 {
+            font-size: 32px;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, var(--info) 0%, var(--purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .login-box p {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            font-size: 14px;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .login-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: flex-start;
+        }
+
+        .login-form .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 15px;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .login-form input:focus {
+            outline: none;
+            border-color: var(--info);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .login-form button {
+            padding: 12px;
+            background: linear-gradient(135deg, var(--info) 0%, var(--purple) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .login-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        body {
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 14px 22px;
+            background-color: var(--success);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            z-index: 2000;
+            animation: slideInRight 0.3s ease-out;
+            font-weight: 500;
+        }
+
+        .toast.error { background-color: var(--danger); }
+
+        @keyframes slideInRight {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--info) 0%, var(--purple) 100%);
+            color: white;
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .header-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-title h1 {
+            font-size: 26px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .header-title p {
+            font-size: 12px;
+            opacity: 0.9;
+            margin: 2px 0 0 0;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background-color: white;
+            color: var(--info);
+            border: none;
+            font-weight: 600;
+        }
+
+        .btn-success { background-color: var(--success); color: white; border: none; }
+        .btn-danger { background-color: var(--danger); color: white; border: none; }
+        .btn-warning { background-color: var(--warning); color: white; border: none; }
+        .btn-small { padding: 6px 12px; font-size: 12px; }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--bg-primary);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 750px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select, textarea {
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--info);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 1.5rem;
+            justify-content: flex-end;
+        }
+
+        .filters-section {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.2rem;
+            position: relative;
+            overflow: hidden;
+            border-left: 4px solid;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .kpi-card.success { border-left-color: var(--success); }
+        .kpi-card.warning { border-left-color: var(--warning); }
+        .kpi-card.danger { border-left-color: var(--danger); }
+        .kpi-card.info { border-left-color: var(--info); }
+        .kpi-card.purple { border-left-color: var(--purple); }
+        .kpi-card.cyan { border-left-color: var(--cyan); }
+        .kpi-card.pink { border-left-color: var(--pink); }
+
+        .kpi-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .kpi-hint {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            position: relative;
+            z-index: 1;
+        }
+
+        .card {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 1rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            background-color: var(--bg-secondary);
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tbody tr:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-success { color: var(--success); font-weight: 600; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-success { background-color: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .status-warning { background-color: rgba(245, 158, 11, 0.15); color: var(--warning); }
+
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 8px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            transform: scale(1.2);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            color: var(--info);
+            border-bottom-color: var(--info);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .text-muted {
+            color: var(--text-tertiary);
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 1rem;">
+                <defs>
+                    <linearGradient id="gradFisioPay" x1="0%" y1="100%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <circle cx="50" cy="50" r="48" fill="white" stroke="url(#gradFisioPay)" stroke-width="2"/>
+                <path d="M 30 65 Q 35 55 40 48 Q 45 40 50 35 Q 55 40 60 48 Q 65 55 70 65" 
+                      stroke="url(#gradFisioPay)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M 55 50 L 70 35 L 70 48" 
+                      stroke="url(#gradFisioPay)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M 38 62 L 42 66 L 48 60" 
+                      stroke="url(#gradFisioPay)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="url(#gradFisioPay)" stroke-width="0.8" opacity="0.3"/>
+            </svg>
+            <h1>FisioPay</h1>
+            <p>Gestão Inteligente de Finanças</p>
+            <div class="login-form">
+                <div class="form-group">
+                    <label>Usuário</label>
+                    <input type="text" id="loginUser" placeholder="Digite seu usuário" />
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" id="loginPass" placeholder="Digite sua senha" />
+                </div>
+                <button onclick="fazerLogin()">Acessar Dashboard</button>
+                <p style="text-align: center; margin-top: 1.5rem; font-size: 12px; color: var(--text-secondary);">
+                    💡 <strong>Teste:</strong> Use qualquer usuário e senha (ex: admin/123)<br>
+                    Seus dados são salvos apenas no seu navegador
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <header id="headerMain" style="display: none;">
+        <div class="header-content">
+            <div class="header-logo">
+                <svg width="50" height="50" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="gradFisioPay" x1="0%" y1="100%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Fundo circular -->
+                    <circle cx="50" cy="50" r="48" fill="white" stroke="url(#gradFisioPay)" stroke-width="2"/>
+                    
+                    <!-- Forma fluida de movimento (corpo em movimento) -->
+                    <path d="M 30 65 Q 35 55 40 48 Q 45 40 50 35 Q 55 40 60 48 Q 65 55 70 65" 
+                          stroke="url(#gradFisioPay)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    
+                    <!-- Seta crescente integrada (finanças) -->
+                    <path d="M 55 50 L 70 35 L 70 48" 
+                          stroke="url(#gradFisioPay)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    
+                    <!-- Check discreto (organização) -->
+                    <path d="M 38 62 L 42 66 L 48 60" 
+                          stroke="url(#gradFisioPay)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    
+                    <!-- Círculo sutil de conclusão -->
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="url(#gradFisioPay)" stroke-width="0.8" opacity="0.3"/>
+                </svg>
+                <div class="header-title">
+                    <h1>FisioPay</h1>
+                    <p>Gestão Inteligente de Finanças para Profissionais da Saúde</p>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn-primary" onclick="abrirModalAtendimento()">➕ Novo</button>
+                <button class="btn-warning btn-small" onclick="exportarPDF()">📄 PDF</button>
+                <button class="btn-danger btn-small" onclick="logout()">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container" id="containerMain">
+        <div class="filters-section">
+            <div class="filter-group" style="flex: 0 0 120px;">
+                <label>Data Inicial</label>
+                <input type="date" id="filtroDataInicio">
+            </div>
+            <div class="filter-group" style="flex: 0 0 120px;">
+                <label>Data Final</label>
+                <input type="date" id="filtroDataFim">
+            </div>
+            <button class="btn-success" onclick="aplicarFiltros()">🔍 Filtrar</button>
+            <button class="btn-success" onclick="limparFiltros()">↺ Limpar</button>
+        </div>
+
+        <div class="kpi-grid" id="kpisContainer"></div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">📈 Evolução de Lucro</div>
+                <div class="chart-container">
+                    <canvas id="chartLinha"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">📊 Receita por Serviço</div>
+                <div class="chart-container">
+                    <canvas id="chartPizza"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="mudarTab('tabTodos')">📋 Todos</button>
+                <button class="tab" onclick="mudarTab('tabPendentes')">⏳ Pendentes</button>
+                <button class="tab" onclick="mudarTab('tabRecebidos')">✓ Recebidos</button>
+            </div>
+
+            <div id="tabTodos" class="tab-content active">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th class="text-right">Valor</th>
+                                <th class="text-right">Deslocamento</th>
+                                <th class="text-right">Lucro</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaTodos"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tabPendentes" class="tab-content">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th class="text-right">Valor</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaPendentes"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tabRecebidos" class="tab-content">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th class="text-right">Lucro</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaRecebidos"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalAtendimento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Novo Atendimento</h2>
+                <button class="close-btn" onclick="fecharModal('modalAtendimento')">✕</button>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Data *</label>
+                    <input type="date" id="formData" required>
+                </div>
+                <div class="form-group">
+                    <label>Descrição *</label>
+                    <input type="text" id="formDescricao" placeholder="Ex: Massagem Relaxante" required>
+                </div>
+                <div class="form-group">
+                    <label>Valor (R$) *</label>
+                    <input type="number" id="formValor" placeholder="0.00" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Deslocamento (R$)</label>
+                    <input type="number" id="formDeslocamento" placeholder="0.00" step="0.01" min="0" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="formStatus">
+                        <option value="Pendente">⏳ Pendente</option>
+                        <option value="Recebido">✓ Recebido</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Observações</label>
+                <textarea id="formObservacoes" placeholder="Notas adicionais..." style="height: 80px;"></textarea>
+            </div>
+
+            <div style="background-color: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                <h3 style="margin-bottom: 1rem; font-size: 14px;">💰 Custos Extras / Produtos</h3>
+                
+                <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-bottom: 1rem; align-items: flex-end;">
+                    <div class="form-group" style="margin: 0;">
+                        <label>Descrição do custo</label>
+                        <input type="text" id="custosDescricao" placeholder="Ex: Óleo de massagem" style="margin: 0;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Valor</label>
+                        <input type="number" id="custosValor" placeholder="0.00" step="0.01" min="0" style="margin: 0; width: 120px;">
+                    </div>
+                    <button type="button" class="btn-success btn-small" onclick="adicionarCusto()" style="margin-bottom: 0;">Adicionar</button>
+                </div>
+
+                <div id="listaCustos" style="display: grid; gap: 8px;"></div>
+                <div id="totalCustosDiv" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-weight: 600; color: var(--danger);">
+                    Total de Custos: R$ <span id="totalCustosValor">0.00</span>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn-success" onclick="fecharModal('modalAtendimento')">Cancelar</button>
+                <button class="btn-primary" onclick="salvarAtendimento()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="inputImport" accept=".json" style="display: none;" onchange="processarImport()">
+
+    <script>
+        let atendimentos = [];
+        let atendimentoEmEdicao = null;
+        let charts = {};
+        let custosTemporarios = [];
+
+        function inicializar() {
+            const autenticado = localStorage.getItem('fisioPay_autenticado');
+            if (autenticado === 'true') {
+                mostrarDashboard();
+                carregarDados();
+                definirDataPadrao();
+                atualizarDashboard();
+                document.getElementById('filtroDataInicio').addEventListener('change', aplicarFiltros);
+                document.getElementById('filtroDataFim').addEventListener('change', aplicarFiltros);
+            }
+        }
+
+        function fazerLogin() {
+            const usuario = document.getElementById('loginUser').value.trim();
+            const senha = document.getElementById('loginPass').value.trim();
+
+            if (!usuario || !senha) {
+                alert('Preencha usuário e senha!');
+                return;
+            }
+
+            // Salvar credenciais localmente (de forma básica)
+            localStorage.setItem('fisioPay_usuario', usuario);
+            localStorage.setItem('fisioPay_senha', btoa(senha)); // Codificação simples
+            localStorage.setItem('fisioPay_autenticado', 'true');
+
+            mostrarDashboard();
+            document.getElementById('loginUser').value = '';
+            document.getElementById('loginPass').value = '';
+            carregarDados();
+            definirDataPadrao();
+            atualizarDashboard();
+            document.getElementById('filtroDataInicio').addEventListener('change', aplicarFiltros);
+            document.getElementById('filtroDataFim').addEventListener('change', aplicarFiltros);
+            mostrarNotificacao('Bem-vindo(a) ao FisioPay!');
+        }
+
+        function logout() {
+            if (confirm('Tem certeza que deseja sair?')) {
+                localStorage.setItem('fisioPay_autenticado', 'false');
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('headerMain').style.display = 'none';
+                document.getElementById('containerMain').style.display = 'none';
+                document.getElementById('modalAtendimento').classList.remove('active');
+                mostrarNotificacao('Desconectado com sucesso!');
+            }
+        }
+
+        function mostrarDashboard() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('headerMain').style.display = 'block';
+            document.getElementById('containerMain').style.display = 'block';
+        }
+
+        function definirDataPadrao() {
+            const hoje = new Date();
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            document.getElementById('filtroDataInicio').valueAsDate = primeiroDia;
+            document.getElementById('filtroDataFim').valueAsDate = hoje;
+        }
+
+        function carregarDados() {
+            const dados = localStorage.getItem('atendimentos');
+            atendimentos = dados ? JSON.parse(dados) : [];
+        }
+
+        function salvarDados() {
+            localStorage.setItem('atendimentos', JSON.stringify(atendimentos));
+        }
+
+        function abrirModalAtendimento(id = null) {
+            custosTemporarios = [];
+            atendimentoEmEdicao = null;
+            document.getElementById('formData').valueAsDate = new Date();
+            document.getElementById('formDescricao').value = '';
+            document.getElementById('formValor').value = '';
+            document.getElementById('formDeslocamento').value = '0';
+            document.getElementById('formStatus').value = 'Pendente';
+            document.getElementById('formObservacoes').value = '';
+            document.getElementById('custosDescricao').value = '';
+            document.getElementById('custosValor').value = '';
+            atualizarListaCustos();
+
+            if (id) {
+                atendimentoEmEdicao = atendimentos.find(a => a.id === id);
+                if (atendimentoEmEdicao) {
+                    document.getElementById('formData').value = atendimentoEmEdicao.data;
+                    document.getElementById('formDescricao').value = atendimentoEmEdicao.descricao;
+                    document.getElementById('formValor').value = atendimentoEmEdicao.valor;
+                    document.getElementById('formDeslocamento').value = atendimentoEmEdicao.deslocamento;
+                    document.getElementById('formStatus').value = atendimentoEmEdicao.status;
+                    document.getElementById('formObservacoes').value = atendimentoEmEdicao.observacoes || '';
+                    custosTemporarios = atendimentoEmEdicao.custos ? JSON.parse(JSON.stringify(atendimentoEmEdicao.custos)) : [];
+                    atualizarListaCustos();
+                }
+            }
+
+            document.getElementById('modalAtendimento').classList.add('active');
+        }
+
+        function adicionarCusto() {
+            const descricao = document.getElementById('custosDescricao').value.trim();
+            const valor = parseFloat(document.getElementById('custosValor').value);
+
+            if (!descricao || !valor || valor <= 0) {
+                mostrarNotificacao('Preencha descrição e valor do custo', 'error');
+                return;
+            }
+
+            custosTemporarios.push({
+                id: Date.now(),
+                descricao,
+                valor
+            });
+
+            document.getElementById('custosDescricao').value = '';
+            document.getElementById('custosValor').value = '';
+            atualizarListaCustos();
+        }
+
+        function removerCusto(id) {
+            custosTemporarios = custosTemporarios.filter(c => c.id !== id);
+            atualizarListaCustos();
+        }
+
+        function atualizarListaCustos() {
+            const totalCustos = custosTemporarios.reduce((sum, c) => sum + c.valor, 0);
+            
+            if (custosTemporarios.length === 0) {
+                document.getElementById('listaCustos').innerHTML = '<p class="text-muted">Nenhum custo adicional</p>';
+                document.getElementById('totalCustosDiv').style.display = 'none';
+            } else {
+                document.getElementById('listaCustos').innerHTML = custosTemporarios.map(c => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-primary); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                        <div>
+                            <div style="font-weight: 500; font-size: 13px;">${c.descricao}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">R$ ${c.valor.toFixed(2)}</div>
+                        </div>
+                        <button class="btn-icon" onclick="removerCusto(${c.id})" style="color: var(--danger);">🗑️</button>
+                    </div>
+                `).join('');
+                document.getElementById('totalCustosDiv').style.display = 'block';
+                document.getElementById('totalCustosValor').textContent = totalCustos.toFixed(2);
+            }
+        }
+
+        function fecharModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function salvarAtendimento() {
+            const data = document.getElementById('formData').value;
+            const descricao = document.getElementById('formDescricao').value.trim();
+            const valor = parseFloat(document.getElementById('formValor').value);
+            const deslocamento = parseFloat(document.getElementById('formDeslocamento').value) || 0;
+            const status = document.getElementById('formStatus').value;
+            const observacoes = document.getElementById('formObservacoes').value;
+
+            if (!data || !descricao || !valor) {
+                mostrarNotificacao('Preencha os campos obrigatórios', 'error');
+                return;
+            }
+
+            if (atendimentoEmEdicao) {
+                atendimentoEmEdicao.data = data;
+                atendimentoEmEdicao.descricao = descricao;
+                atendimentoEmEdicao.valor = valor;
+                atendimentoEmEdicao.deslocamento = deslocamento;
+                atendimentoEmEdicao.status = status;
+                atendimentoEmEdicao.observacoes = observacoes;
+                atendimentoEmEdicao.custos = custosTemporarios;
+                mostrarNotificacao('Atendimento atualizado!');
+            } else {
+                atendimentos.push({
+                    id: Date.now(),
+                    data, descricao, valor, deslocamento, status, observacoes,
+                    custos: custosTemporarios
+                });
+                mostrarNotificacao('Atendimento adicionado!');
+            }
+
+            salvarDados();
+            fecharModal('modalAtendimento');
+            atualizarDashboard();
+        }
+
+        function deletarAtendimento(id) {
+            if (confirm('Deletar este atendimento?')) {
+                atendimentos = atendimentos.filter(a => a.id !== id);
+                salvarDados();
+                atualizarDashboard();
+                mostrarNotificacao('Deletado!');
+            }
+        }
+
+        function calcularMetricas() {
+            const dataInicio = document.getElementById('filtroDataInicio').value;
+            const dataFim = document.getElementById('filtroDataFim').value;
+
+            const arr = atendimentos.filter(a => {
+                const dataOk = (!dataInicio || a.data >= dataInicio) && (!dataFim || a.data <= dataFim);
+                return dataOk && a.status === 'Recebido';
+            });
+
+            const faturamentoBruto = arr.reduce((sum, a) => sum + a.valor, 0);
+            const totalDeslocamento = arr.reduce((sum, a) => sum + a.deslocamento, 0);
+            const totalCustos = arr.reduce((sum, a) => {
+                if (a.custos && Array.isArray(a.custos)) {
+                    return sum + a.custos.reduce((s, c) => s + c.valor, 0);
+                }
+                return sum;
+            }, 0);
+            const lucroLiquido = faturamentoBruto - totalDeslocamento - totalCustos;
+            const margem = faturamentoBruto > 0 ? (lucroLiquido / faturamentoBruto * 100) : 0;
+            const ticketMedio = arr.length > 0 ? lucroLiquido / arr.length : 0;
+
+            return {
+                faturamentoBruto, totalDeslocamento, totalCustos, lucroLiquido, margem, ticketMedio,
+                totalAtendimentos: arr.length, dados: arr
+            };
+        }
+
+        function atualizarDashboard() {
+            const m = calcularMetricas();
+
+            const kpisHtml = `
+                <div class="kpi-card success">
+                    <div class="kpi-label">💰 Lucro Líquido</div>
+                    <div class="kpi-value">R$ ${Math.round(m.lucroLiquido)}</div>
+                    <div class="kpi-hint">Após deslocamentos e custos</div>
+                </div>
+                <div class="kpi-card info">
+                    <div class="kpi-label">📊 Faturamento Bruto</div>
+                    <div class="kpi-value">R$ ${Math.round(m.faturamentoBruto)}</div>
+                    <div class="kpi-hint">Valor total</div>
+                </div>
+                <div class="kpi-card purple">
+                    <div class="kpi-label">📈 Margem</div>
+                    <div class="kpi-value">${m.margem.toFixed(1)}%</div>
+                    <div class="kpi-hint">Lucro/Faturamento</div>
+                </div>
+                <div class="kpi-card warning">
+                    <div class="kpi-label">🎯 Ticket Médio</div>
+                    <div class="kpi-value">R$ ${Math.round(m.ticketMedio)}</div>
+                    <div class="kpi-hint">Por atendimento</div>
+                </div>
+                <div class="kpi-card cyan" style="border-left-color: var(--cyan);">
+                    <div class="kpi-label">💸 Custos Totais</div>
+                    <div class="kpi-value">R$ ${Math.round(m.totalDeslocamento + m.totalCustos)}</div>
+                    <div class="kpi-hint">Deslocamentos + Produtos</div>
+                </div>
+                <div class="kpi-card pink">
+                    <div class="kpi-label">📍 Atendimentos</div>
+                    <div class="kpi-value">${m.totalAtendimentos}</div>
+                    <div class="kpi-hint">Recebidos</div>
+                </div>
+            `;
+            document.getElementById('kpisContainer').innerHTML = kpisHtml;
+
+            atualizarGraficos();
+            atualizarTabelas();
+        }
+
+        function atualizarGraficos() {
+            const m = calcularMetricas();
+            
+            const dias = {};
+            m.dados.forEach(a => {
+                const totalCustos = (a.custos && Array.isArray(a.custos)) ? a.custos.reduce((s, c) => s + c.valor, 0) : 0;
+                if (!dias[a.data]) dias[a.data] = 0;
+                dias[a.data] += a.valor - a.deslocamento - totalCustos;
+            });
+
+            const labels = Object.keys(dias).sort();
+            const data = labels.map(l => dias[l]);
+
+            const ctx = document.getElementById('chartLinha');
+            if (charts.linha) charts.linha.destroy();
+
+            charts.linha = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.map(l => formatarData(l)),
+                    datasets: [{
+                        label: 'Lucro Diário (R$)',
+                        data: data,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#10b981'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            const tipos = {};
+            m.dados.forEach(a => {
+                const totalCustos = (a.custos && Array.isArray(a.custos)) ? a.custos.reduce((s, c) => s + c.valor, 0) : 0;
+                if (!tipos[a.descricao]) tipos[a.descricao] = 0;
+                tipos[a.descricao] += a.valor - a.deslocamento - totalCustos;
+            });
+
+            const labels2 = Object.keys(tipos);
+            const data2 = Object.values(tipos);
+            const cores = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+            const ctx2 = document.getElementById('chartPizza');
+            if (charts.pizza) charts.pizza.destroy();
+
+            charts.pizza = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: labels2,
+                    datasets: [{
+                        data: data2,
+                        backgroundColor: cores.slice(0, labels2.length),
+                        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-primary'),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        function atualizarTabelas() {
+            const dataInicio = document.getElementById('filtroDataInicio').value;
+            const dataFim = document.getElementById('filtroDataFim').value;
+            
+            const todos = atendimentos.filter(a => {
+                const dataOk = (!dataInicio || a.data >= dataInicio) && (!dataFim || a.data <= dataFim);
+                return dataOk;
+            });
+
+            const pendentes = todos.filter(a => a.status === 'Pendente');
+            const recebidos = todos.filter(a => a.status === 'Recebido');
+
+            document.getElementById('tabelaTodos').innerHTML = todos.reverse().map(a => {
+                const totalCustos = (a.custos && Array.isArray(a.custos)) ? a.custos.reduce((s, c) => s + c.valor, 0) : 0;
+                const liquido = a.valor - a.deslocamento - totalCustos;
+                const temCustos = totalCustos > 0 ? '💰' : '';
+                return `<tr>
+                    <td>${formatarData(a.data)}</td>
+                    <td>${a.descricao} ${temCustos}</td>
+                    <td class="text-right">R$ ${a.valor.toFixed(2)}</td>
+                    <td class="text-right">R$ ${(a.deslocamento + totalCustos).toFixed(2)}</td>
+                    <td class="text-right text-success">R$ ${liquido.toFixed(2)}</td>
+                    <td class="text-center"><span class="status-badge status-${a.status === 'Recebido' ? 'success' : 'warning'}">${a.status}</span></td>
+                    <td class="text-center action-buttons">
+                        <button class="btn-icon" onclick="abrirModalAtendimento(${a.id})" style="color: var(--info);">✏️</button>
+                        <button class="btn-icon" onclick="deletarAtendimento(${a.id})" style="color: var(--danger);">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="7" class="text-center text-muted">Nenhum atendimento</td></tr>';
+
+            document.getElementById('tabelaPendentes').innerHTML = pendentes.reverse().map(a => {
+                const totalCustos = (a.custos && Array.isArray(a.custos)) ? a.custos.reduce((s, c) => s + c.valor, 0) : 0;
+                const temCustos = totalCustos > 0 ? '💰' : '';
+                return `<tr>
+                <td>${formatarData(a.data)}</td>
+                <td>${a.descricao} ${temCustos}</td>
+                <td class="text-right">R$ ${a.valor.toFixed(2)}</td>
+                <td class="text-center action-buttons">
+                    <button class="btn-icon" onclick="abrirModalAtendimento(${a.id})" style="color: var(--info);">✏️</button>
+                    <button class="btn-icon" onclick="deletarAtendimento(${a.id})" style="color: var(--danger);">🗑️</button>
+                </td>
+            </tr>`;
+            }).join('') || '<tr><td colspan="4" class="text-center text-muted">Nenhum pendente</td></tr>';
+
+            document.getElementById('tabelaRecebidos').innerHTML = recebidos.reverse().map(a => {
+                const totalCustos = (a.custos && Array.isArray(a.custos)) ? a.custos.reduce((s, c) => s + c.valor, 0) : 0;
+                const liquido = a.valor - a.deslocamento - totalCustos;
+                const temCustos = totalCustos > 0 ? '💰' : '';
+                return `<tr>
+                    <td>${formatarData(a.data)}</td>
+                    <td>${a.descricao} ${temCustos}</td>
+                    <td class="text-right text-success">R$ ${liquido.toFixed(2)}</td>
+                    <td class="text-center action-buttons">
+                        <button class="btn-icon" onclick="abrirModalAtendimento(${a.id})" style="color: var(--info);">✏️</button>
+                        <button class="btn-icon" onclick="deletarAtendimento(${a.id})" style="color: var(--danger);">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="4" class="text-center text-muted">Nenhum recebido</td></tr>';
+        }
+
+        function mudarTab(tabId) {
+            const tabs = event.target.parentElement;
+            tabs.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tabs.parentElement.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function aplicarFiltros() {
+            atualizarDashboard();
+        }
+
+        function limparFiltros() {
+            const hoje = new Date();
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            document.getElementById('filtroDataInicio').valueAsDate = primeiroDia;
+            document.getElementById('filtroDataFim').valueAsDate = hoje;
+            atualizarDashboard();
+        }
+
+        function formatarData(data) {
+            if (!data) return '';
+            const [ano, mes, dia] = data.split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        function mostrarNotificacao(msg, tipo = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${tipo}`;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function exportarPDF() {
+            const m = calcularMetricas();
+            const elemento = document.createElement('div');
+            elemento.innerHTML = `
+                <h1>Relatório FisioPay</h1>
+                <h2>${new Date().toLocaleDateString('pt-BR')}</h2>
+                <h3>Resumo Financeiro</h3>
+                <p>Lucro Líquido: R$ ${m.lucroLiquido.toFixed(2)}</p>
+                <p>Faturamento: R$ ${m.faturamentoBruto.toFixed(2)}</p>
+                <p>Custos Totais: R$ ${(m.totalDeslocamento + m.totalCustos).toFixed(2)}</p>
+                <p>Margem: ${m.margem.toFixed(1)}%</p>
+                <p>Ticket Médio: R$ ${m.ticketMedio.toFixed(2)}</p>
+                <p>Total de Atendimentos: ${m.totalAtendimentos}</p>
+            `;
+
+            const opt = {
+                margin: 10,
+                filename: `relatorio_fisioPay_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+            };
+
+            html2pdf().set(opt).from(elemento).save();
+            mostrarNotificacao('PDF gerado!');
+        }
+
+        inicializar();
+        setInterval(() => salvarDados(), 30000);
+    </script>
+</body>
+</html>
