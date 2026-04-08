@@ -2,7 +2,10 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <title>PortaFácil — Sistema de Encomendas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -31,6 +34,16 @@
     --radius-sm: 8px;
     --font: 'DM Sans', sans-serif;
     --mono: 'DM Mono', monospace;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --bnav-h: 64px;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -38,11 +51,14 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
   }
 
-  /* Sidebar */
+  /* ── SIDEBAR ── */
   .sidebar {
     width: 220px;
     min-height: 100vh;
@@ -77,6 +93,7 @@
     border-radius: 50%;
     box-shadow: 0 0 8px var(--accent-glow);
     animation: pulse 2s ease-in-out infinite;
+    flex-shrink: 0;
   }
 
   @keyframes pulse {
@@ -104,9 +121,12 @@
     transition: all 0.15s;
     border: 1px solid transparent;
     user-select: none;
+    touch-action: manipulation;
+    min-height: 44px;
   }
 
   .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item:active { opacity: 0.7; }
 
   .nav-item.active {
     background: var(--accent-dim);
@@ -151,13 +171,14 @@
   .user-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .user-role { font-size: 11px; color: var(--text3); }
 
-  /* Main content */
+  /* ── MAIN ── */
   .main {
     margin-left: 220px;
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .topbar {
@@ -176,19 +197,22 @@
   .topbar-actions { display: flex; gap: 10px; align-items: center; }
 
   .btn {
-    display: inline-flex; align-items: center; gap: 6px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     padding: 8px 14px;
     border-radius: var(--radius-sm);
     font-size: 13px; font-weight: 500;
     cursor: pointer; border: none; transition: all 0.15s;
     font-family: var(--font);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+    min-width: 44px;
+    white-space: nowrap;
   }
 
-  .btn-primary {
-    background: var(--accent);
-    color: #0a1a0f;
-  }
+  .btn-primary { background: var(--accent); color: #0a1a0f; }
   .btn-primary:hover { background: #22c55e; }
+  .btn-primary:active { background: #16a34a; transform: scale(0.97); }
 
   .btn-ghost {
     background: transparent;
@@ -196,17 +220,18 @@
     border: 1px solid var(--border2);
   }
   .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-ghost:active { opacity: 0.7; transform: scale(0.97); }
 
-  /* Content area */
+  /* ── CONTENT ── */
   .content { padding: 28px 32px; flex: 1; }
 
-  /* Sections */
+  /* ── SECTIONS ── */
   .section { display: none; }
   .section.active { display: block; animation: fadeIn 0.2s ease; }
 
   @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* Stats row */
+  /* ── STATS ── */
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -229,7 +254,7 @@
   .stat-card.amber .stat-value { color: var(--amber); }
   .stat-card.blue .stat-value { color: var(--blue); }
 
-  /* Table */
+  /* ── TABLE ── */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -266,53 +291,54 @@
   }
 
   tr:last-child td { border-bottom: none; }
-
   tr:hover td { background: var(--surface2); }
 
   td .primary { color: var(--text); font-weight: 500; }
   td .mono { font-family: var(--mono); font-size: 12px; color: var(--text3); }
 
+  /* ── BADGES ── */
   .badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 9px;
     border-radius: 999px;
     font-size: 11px; font-weight: 500;
+    white-space: nowrap;
   }
-
-  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
-
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
   .badge-green { background: var(--accent-dim); color: var(--accent); }
   .badge-green::before { background: var(--accent); }
-
   .badge-amber { background: var(--amber-dim); color: var(--amber); }
   .badge-amber::before { background: var(--amber); }
-
   .badge-blue { background: var(--blue-dim); color: var(--blue); }
   .badge-blue::before { background: var(--blue); }
-
   .badge-retirado { background: rgba(139,144,160,0.12); color: var(--text2); }
   .badge-retirado::before { background: var(--text2); }
 
+  /* ── BTN RETIRAR ── */
   .btn-retirar {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: 6px;
-    font-size: 11px; font-weight: 500;
+    font-size: 12px; font-weight: 500;
     cursor: pointer; border: 1px solid var(--border2);
     background: transparent; color: var(--text2);
     font-family: var(--font);
     transition: all 0.15s;
     white-space: nowrap;
+    touch-action: manipulation;
+    min-height: 36px;
   }
   .btn-retirar:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(74,222,128,0.3); }
+  .btn-retirar:active { transform: scale(0.96); }
 
-  /* Modal retirada */
+  /* ── MODAL ── */
   .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,0.6); z-index: 200;
     align-items: center; justify-content: center;
   }
   .modal-overlay.open { display: flex; }
+
   .modal {
     background: var(--surface);
     border: 1px solid var(--border2);
@@ -323,11 +349,11 @@
     animation: fadeIn 0.2s ease;
   }
   .modal-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-  .modal-sub { font-size: 12.5px; color: var(--text3); margin-bottom: 20px; }
+  .modal-sub { font-size: 12.5px; color: var(--text3); margin-bottom: 20px; line-height: 1.5; }
   .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-  .modal-actions .btn { flex: 1; justify-content: center; }
+  .modal-actions .btn { flex: 1; }
 
-  /* Form section */
+  /* ── FORM ── */
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
   .form-full { grid-column: 1 / -1; }
 
@@ -339,11 +365,14 @@
     border: 1px solid var(--border2);
     border-radius: var(--radius-sm);
     padding: 10px 14px;
-    font-size: 14px;
+    font-size: 16px; /* prevents iOS zoom */
     color: var(--text);
     font-family: var(--font);
     transition: border-color 0.15s;
     outline: none;
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .field input::placeholder, .field textarea::placeholder { color: var(--text3); }
@@ -353,7 +382,15 @@
     box-shadow: 0 0 0 3px var(--accent-dim);
   }
 
-  .field select option { background: var(--surface2); }
+  .field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555b6e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+
+  .field select option { background: var(--surface2); color: var(--text); font-size: 16px; }
   .field textarea { resize: vertical; min-height: 80px; }
 
   .form-card {
@@ -377,6 +414,7 @@
     margin-bottom: 16px;
   }
 
+  /* ── TOAST ── */
   .success-toast {
     position: fixed; bottom: 28px; right: 28px;
     background: var(--accent);
@@ -388,14 +426,13 @@
     display: flex; align-items: center; gap: 8px;
     transform: translateY(80px); opacity: 0;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: calc(100vw - 56px);
   }
-
   .success-toast.show { transform: translateY(0); opacity: 1; }
 
-  /* Empty state */
+  /* ── MORADORES ── */
   .empty { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 13px; }
 
-  /* Moradores section */
   .morador-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 
   .morador-card {
@@ -406,7 +443,6 @@
     display: flex; align-items: center; gap: 14px;
     transition: border-color 0.15s;
   }
-
   .morador-card:hover { border-color: var(--border2); }
 
   .morador-avatar {
@@ -426,102 +462,163 @@
   .morador-wpp { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
   .divider { height: 1px; background: var(--border); margin: 24px 0; }
-
   .section-intro { font-size: 13px; color: var(--text3); margin-bottom: 20px; line-height: 1.6; }
 
-  /* Scrollbar */
+  /* ── SCROLLBAR ── */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 999px; }
 
-  /* ── MOBILE RESPONSIVE ── */
+  /* ════════════════════════════════════════════
+     MOBILE — ≤ 768px
+  ════════════════════════════════════════════ */
   @media (max-width: 768px) {
+
     /* Sidebar vira overlay deslizante */
     .sidebar {
-      width: 260px;
+      width: min(280px, 85vw);
       transform: translateX(-100%);
-      transition: transform 0.25s ease;
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 300;
+      padding-top: var(--safe-top);
     }
     .sidebar.open { transform: translateX(0); }
 
-    /* Overlay escuro ao abrir sidebar */
+    /* Backdrop escuro */
     .sidebar-backdrop {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5); z-index: 299;
+      background: rgba(0,0,0,0.55);
+      z-index: 299;
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
     }
     .sidebar-backdrop.open { display: block; }
 
     /* Main ocupa tudo */
-    .main { margin-left: 0; padding-bottom: 70px; }
+    .main {
+      margin-left: 0;
+      padding-bottom: calc(var(--bnav-h) + var(--safe-bottom));
+    }
 
     /* Topbar mobile */
-    .topbar { padding: 14px 16px; }
-    .topbar-actions .btn-ghost span { display: none; }
+    .topbar {
+      padding: 12px 16px;
+      padding-top: calc(12px + var(--safe-top));
+      gap: 8px;
+    }
 
     /* Botão hamburguer */
     .menu-btn {
       display: flex; align-items: center; justify-content: center;
-      width: 36px; height: 36px;
+      width: 40px; height: 40px;
       background: var(--surface2); border: 1px solid var(--border2);
       border-radius: var(--radius-sm); cursor: pointer;
-      font-size: 16px; color: var(--text2); flex-shrink: 0;
-      margin-right: 10px;
+      font-size: 18px; color: var(--text2); flex-shrink: 0;
+      touch-action: manipulation;
+    }
+    .menu-btn:active { opacity: 0.7; }
+
+    /* Botão "Nova encomenda" — ícone apenas */
+    .topbar-actions .btn-nova-label { display: none; }
+    .topbar-actions .btn {
+      padding: 0;
+      width: 40px; height: 40px;
     }
 
     /* Content padding menor */
-    .content { padding: 16px; }
+    .content { padding: 16px 16px calc(16px + var(--safe-bottom)); }
 
-    /* Stats em 2 colunas */
-    .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    /* Stats: 2×2 */
+    .stats-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
     .stat-card { padding: 14px 16px; }
-    .stat-value { font-size: 22px; }
+    .stat-value { font-size: 24px; }
 
     /* Formulário coluna única */
-    .form-grid { grid-template-columns: 1fr; }
-    .form-card { padding: 16px; max-width: 100%; }
+    .form-grid { grid-template-columns: 1fr; gap: 14px; }
+    .form-card { padding: 16px; max-width: 100%; border-radius: var(--radius); }
 
-    /* Tabelas viram cards empilhados */
+    /* ── TABELAS → CARDS EMPILHADOS ── */
     table, thead, tbody, th, td, tr { display: block; }
     thead { display: none; }
+
     tr {
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       margin: 0 0 10px 0;
-      padding: 14px;
+      padding: 14px 16px;
       position: relative;
     }
+    tr:last-child { margin-bottom: 0; }
     tr:hover td { background: transparent; }
+
     td {
       padding: 3px 0;
       border: none;
       font-size: 13px;
-      display: flex; align-items: center; gap: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      min-height: unset;
     }
+
     td::before {
       content: attr(data-label);
       font-size: 10px; color: var(--text3);
       text-transform: uppercase; letter-spacing: 0.6px;
-      min-width: 80px; flex-shrink: 0;
+      min-width: 88px; flex-shrink: 0;
+      padding-top: 2px;
     }
-    td:first-child { margin-bottom: 6px; }
-    td:first-child::before { display: none; }
-    td:first-child .primary { font-size: 14px; }
 
-    /* Status + botão retirar no card */
+    /* Primeira célula = cabeçalho do card */
+    td:first-child {
+      margin-bottom: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    td:first-child::before { display: none; }
+    td:first-child .primary { font-size: 14.5px; }
+
     td[data-label="Status"],
     td[data-label="Retirada por"] {
       flex-wrap: wrap;
+      gap: 6px;
     }
 
-    /* Bottom nav */
+    td[data-label="Status"]::before,
+    td[data-label="Retirada por"]::before {
+      padding-top: 4px;
+    }
+
+    /* Linha de separação no card antes de status */
+    td[data-label="Status"] {
+      margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Remove table overflow no card */
+    .card { overflow: visible; }
+    .card-header { padding: 14px 16px; }
+
+    /* Tabela padding interno */
+    table { padding: 12px; }
+
+    /* ── BOTTOM NAV ── */
     .bottom-nav {
       display: flex;
       position: fixed; bottom: 0; left: 0; right: 0;
       background: var(--surface);
       border-top: 1px solid var(--border);
-      z-index: 200; height: 64px;
+      z-index: 200;
+      height: calc(var(--bnav-h) + var(--safe-bottom));
+      padding-bottom: var(--safe-bottom);
+      padding-left: var(--safe-left);
+      padding-right: var(--safe-right);
     }
     .bottom-nav-item {
       flex: 1; display: flex; flex-direction: column;
@@ -530,22 +627,66 @@
       color: var(--text3); font-size: 10px;
       transition: color 0.15s; user-select: none;
       position: relative;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
     }
+    .bottom-nav-item:active { opacity: 0.6; }
     .bottom-nav-item.active { color: var(--accent); }
-    .bottom-nav-item .bnav-icon { font-size: 18px; }
+    .bottom-nav-item .bnav-icon { font-size: 20px; }
     .bottom-nav-item .bnav-badge {
-      position: absolute; top: 8px; right: calc(50% - 16px);
+      position: absolute; top: 8px; right: calc(50% - 18px);
       background: var(--accent); color: #0a1a0f;
       font-size: 9px; font-weight: 700;
       padding: 1px 5px; border-radius: 999px;
       font-family: var(--mono);
+      pointer-events: none;
     }
 
-    /* Toast bottom maior */
-    .success-toast { bottom: 76px; right: 16px; left: 16px; }
+    /* Toast acima do bottom nav */
+    .success-toast {
+      bottom: calc(var(--bnav-h) + var(--safe-bottom) + 12px);
+      right: 16px; left: 16px;
+      max-width: none;
+      border-radius: var(--radius);
+    }
 
-    /* Modal full em mobile */
-    .modal { width: 92vw; padding: 20px; }
+    /* ── MODAL como bottom sheet em mobile ── */
+    .modal-overlay {
+      align-items: flex-end;
+      padding-bottom: var(--safe-bottom);
+    }
+    .modal {
+      width: 100%;
+      max-width: 100%;
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 24px 20px 20px;
+      animation: slideUp 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      border-bottom: none;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .modal::before {
+      content: '';
+      display: block;
+      width: 36px; height: 4px;
+      background: var(--border2);
+      border-radius: 999px;
+      margin: 0 auto 20px;
+    }
+
+    /* Inputs maiores no modal */
+    .modal .field input,
+    .modal .field select,
+    .modal .field textarea {
+      padding: 12px 14px;
+    }
+
+    /* Botões de ação no modal maiores */
+    .modal-actions { gap: 10px; }
+    .modal-actions .btn { padding: 14px; font-size: 14px; }
   }
 
   /* Desktop: esconder bottom nav e menu btn */
@@ -553,6 +694,7 @@
     .bottom-nav { display: none; }
     .menu-btn { display: none; }
     .sidebar-backdrop { display: none !important; }
+    .topbar-actions .btn-nova-label { display: inline; }
   }
 </style>
 </head>
@@ -596,15 +738,17 @@
 
 <div class="main">
   <div class="topbar">
-    <div style="display:flex;align-items:center;gap:4px;">
-      <div class="menu-btn" onclick="toggleSidebar()">☰</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="menu-btn" onclick="toggleSidebar()" aria-label="Menu">☰</div>
       <div>
         <div class="page-title" id="page-title">Dashboard</div>
         <div class="page-sub" id="page-sub">Visão geral do dia</div>
       </div>
     </div>
     <div class="topbar-actions">
-      <button class="btn btn-ghost" onclick="navigate('registrar', document.querySelector('[onclick*=\"registrar\"]'))">＋ Nova encomenda</button>
+      <button class="btn btn-ghost" onclick="navigate('registrar', document.querySelector('[onclick*=\'registrar\']'))">
+        <span>＋</span><span class="btn-nova-label"> Nova encomenda</span>
+      </button>
     </div>
   </div>
 
@@ -616,29 +760,29 @@
         <div class="stat-card green">
           <div class="stat-label">Hoje</div>
           <div class="stat-value" id="stat-hoje">3</div>
-          <div class="stat-sub">encomendas registradas</div>
+          <div class="stat-sub">registradas</div>
         </div>
         <div class="stat-card amber">
           <div class="stat-label">Pendentes</div>
           <div class="stat-value" id="stat-pendentes">2</div>
-          <div class="stat-sub">aguardando retirada</div>
+          <div class="stat-sub">aguardando</div>
         </div>
         <div class="stat-card blue">
           <div class="stat-label">Este mês</div>
           <div class="stat-value">47</div>
-          <div class="stat-sub">total de entregas</div>
+          <div class="stat-sub">entregas</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Notificações</div>
+          <div class="stat-label">Notific.</div>
           <div class="stat-value">100%</div>
-          <div class="stat-sub">taxa de entrega</div>
+          <div class="stat-sub">taxa</div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-header">
           <span class="card-title">Últimas encomendas</span>
-          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;" onclick="navigate('encomendas', document.querySelector('[onclick*=\"encomendas\"]'))">Ver todas →</button>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;min-height:36px;" onclick="navigate('encomendas', document.querySelector('[onclick*=\'encomendas\']'))">Ver todas →</button>
         </div>
         <table>
           <thead>
@@ -673,7 +817,7 @@
           </div>
           <div class="field">
             <label>Nome do entregador</label>
-            <input id="f-entregador" type="text" placeholder="Ex: João Correia"/>
+            <input id="f-entregador" type="text" placeholder="Ex: João Correia" autocomplete="off"/>
           </div>
           <div class="field">
             <label>Transportadora / Serviço</label>
@@ -709,7 +853,7 @@
           ✓ Notificação WhatsApp será enviada automaticamente ao morador
         </div>
 
-        <button class="btn btn-primary" onclick="registrar()" style="width:100%;justify-content:center;padding:11px;">
+        <button class="btn btn-primary" onclick="registrar()" style="width:100%;padding:13px;font-size:15px;">
           Registrar e notificar →
         </button>
       </div>
@@ -769,17 +913,20 @@
     <span class="bnav-icon">◎</span>
     <span>Moradores</span>
   </div>
-</nav> id="modal-retirada">
+</nav>
+
+<!-- Modal retirada -->
+<div class="modal-overlay" id="modal-retirada">
   <div class="modal">
     <div class="modal-title">Confirmar retirada</div>
     <div class="modal-sub" id="modal-desc">Marque quem retirou a encomenda na portaria.</div>
     <div class="field">
       <label>Retirado por</label>
-      <input id="modal-quem" type="text" placeholder="Nome de quem pegou na portaria..."/>
+      <input id="modal-quem" type="text" placeholder="Nome de quem pegou na portaria..." autocomplete="off"/>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarRetirada()">✓ Confirmar retirada</button>
+      <button class="btn btn-primary" onclick="confirmarRetirada()">✓ Confirmar</button>
     </div>
   </div>
 </div>
@@ -809,23 +956,9 @@ function badgeHtml(status) {
   return `<span class="badge badge-amber">Pendente</span>`;
 }
 
-function renderTabela(tbody, rows) {
-  if (!tbody) return;
-  tbody.innerHTML = rows.map(e => `
-    <tr>
-      <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
-      <td>${e.entregador}</td>
-      <td>${e.tipo}</td>
-      ${rows[0].transportadora !== undefined ? `<td>${e.transportadora}</td>` : ''}
-      <td class="mono">${e.hora}</td>
-      <td>${badgeHtml(e.status)}</td>
-    </tr>
-  `).join('');
-}
-
 function renderDashboard() {
   const tbody = document.getElementById('tabela-dashboard');
-  tbody.innerHTML = encomendas.slice(-5).reverse().map((e, i) => {
+  tbody.innerHTML = encomendas.slice(-5).reverse().map((e) => {
     const idx = encomendas.indexOf(e);
     const acaoBotao = e.status !== 'Retirado'
       ? `<button class="btn-retirar" onclick="abrirModal(${idx})">↓ Registrar retirada</button>`
@@ -836,7 +969,7 @@ function renderDashboard() {
       <td data-label="Entregador">${e.entregador}</td>
       <td data-label="Tipo">${e.tipo}</td>
       <td data-label="Horário" class="mono">${e.hora}</td>
-      <td data-label="Status" style="flex-wrap:wrap;gap:6px;">${badgeHtml(e.status)} ${acaoBotao}</td>
+      <td data-label="Status">${badgeHtml(e.status)} ${acaoBotao}</td>
     </tr>`;
   }).join('');
   const pendentes = encomendas.filter(e => e.status !== 'Retirado').length;
@@ -887,6 +1020,7 @@ const pageTitles = {
 function toggleSidebar() {
   document.querySelector('.sidebar').classList.toggle('open');
   document.getElementById('sidebar-backdrop').classList.toggle('open');
+  document.body.style.overflow = document.querySelector('.sidebar').classList.contains('open') ? 'hidden' : '';
 }
 
 function navigate(page, el, fromBottomNav = false) {
@@ -894,13 +1028,10 @@ function navigate(page, el, fromBottomNav = false) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + page).classList.add('active');
-  // sync sidebar nav
   const sidebarItem = document.querySelector(`.nav-item[onclick*="${page}"]`);
   if (sidebarItem) sidebarItem.classList.add('active');
-  // sync bottom nav
   const bnavItem = document.getElementById('bnav-' + page);
   if (bnavItem) bnavItem.classList.add('active');
-  // if came from sidebar item, close sidebar on mobile
   if (!fromBottomNav && el) {
     el.classList.add('active');
     if (window.innerWidth <= 768) toggleSidebar();
@@ -908,6 +1039,9 @@ function navigate(page, el, fromBottomNav = false) {
   const p = pageTitles[page];
   document.getElementById('page-title').textContent = p.title;
   document.getElementById('page-sub').textContent = p.sub;
+  // Scroll to top on navigate
+  document.querySelector('.content').scrollTop = 0;
+  window.scrollTo(0, 0);
   if (page === 'dashboard') renderDashboard();
   if (page === 'encomendas') renderEncomendas();
   if (page === 'moradores') renderMoradores();
@@ -947,6 +1081,7 @@ function registrar() {
 function showToast(msg, error = false) {
   const t = document.getElementById('toast');
   t.style.background = error ? 'var(--red)' : 'var(--accent)';
+  t.style.color = error ? '#fff' : '#0a1a0f';
   document.getElementById('toast-msg').textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3500);
@@ -957,14 +1092,16 @@ let modalIdx = null;
 function abrirModal(idx) {
   modalIdx = idx;
   const e = encomendas[idx];
-  document.getElementById('modal-desc').textContent = `Encomenda de ${e.morador} (Apto ${e.apto}) — ${e.tipo} via ${e.transportadora}`;
+  document.getElementById('modal-desc').textContent = `${e.morador} (Apto ${e.apto}) — ${e.tipo} via ${e.transportadora}`;
   document.getElementById('modal-quem').value = '';
   document.getElementById('modal-retirada').classList.add('open');
+  document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('modal-quem').focus(), 100);
 }
 
 function fecharModal() {
   document.getElementById('modal-retirada').classList.remove('open');
+  document.body.style.overflow = '';
   modalIdx = null;
 }
 
@@ -985,10 +1122,18 @@ function confirmarRetirada() {
   showToast(`Retirada confirmada — ${quem} pegou a encomenda ✓`);
 }
 
-// Fechar modal clicando fora
 document.addEventListener('click', e => {
   if (e.target.id === 'modal-retirada') fecharModal();
 });
+
+// Fechar sidebar com swipe left
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar.classList.contains('open') && dx < -60) toggleSidebar();
+}, { passive: true });
 
 renderDashboard();
 renderMoradores();
