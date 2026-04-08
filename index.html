@@ -1,432 +1,836 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz de Exercícios para Idosas</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PortaFácil — Sistema de Encomendas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #FFF5F7 0%, #F0E6FF 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
+  :root {
+    --bg: #0f1117;
+    --surface: #171b26;
+    --surface2: #1e2333;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #555b6e;
+    --accent: #4ade80;
+    --accent-dim: rgba(74,222,128,0.12);
+    --accent-glow: rgba(74,222,128,0.25);
+    --amber: #fbbf24;
+    --amber-dim: rgba(251,191,36,0.12);
+    --blue: #60a5fa;
+    --blue-dim: rgba(96,165,250,0.12);
+    --red: #f87171;
+    --red-dim: rgba(248,113,113,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
 
-        .container {
-            width: 100%;
-            max-width: 600px;
-        }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+  }
 
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            animation: slideDown 0.6s ease-out;
-        }
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+  }
 
-        .logo {
-            font-size: 14px;
-            font-weight: 500;
-            color: #888;
-            margin-bottom: 12px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
 
-        .header h1 {
-            font-size: 32px;
-            font-weight: 600;
-            color: #222;
-            margin-bottom: 8px;
-            line-height: 1.3;
-        }
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
 
-        .header p {
-            font-size: 16px;
-            color: #666;
-            line-height: 1.6;
-        }
+  .logo-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent-glow);
+    animation: pulse 2s ease-in-out infinite;
+  }
 
-        .quiz-card {
-            background: white;
-            border-radius: 16px;
-            padding: 40px 32px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            animation: slideUp 0.6s ease-out;
-        }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
+    50% { opacity: 0.6; box-shadow: 0 0 16px var(--accent-glow); }
+  }
 
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: #e0e0e0;
-            border-radius: 2px;
-            margin-bottom: 32px;
-            overflow: hidden;
-        }
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
 
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #D85A30, #D4537E);
-            border-radius: 2px;
-            transition: width 0.4s ease;
-        }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13.5px;
+    color: var(--text2);
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    user-select: none;
+  }
 
-        .question-section {
-            min-height: 280px;
-        }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
 
-        .question-text {
-            font-size: 20px;
-            font-weight: 500;
-            color: #222;
-            margin-bottom: 28px;
-            line-height: 1.4;
-        }
+  .nav-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: rgba(74,222,128,0.15);
+  }
 
-        .options {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+  .nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
 
-        .option {
-            padding: 16px 20px;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 15px;
-            color: #333;
-            text-align: left;
-            position: relative;
-            overflow: hidden;
-            font-family: inherit;
-        }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #0a1a0f;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-family: var(--mono);
+  }
 
-        .option:hover {
-            border-color: #D85A30;
-            background: rgba(216, 90, 48, 0.03);
-            transform: translateX(4px);
-        }
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
 
-        .option.selected {
-            border-color: #D85A30;
-            background: rgba(216, 90, 48, 0.1);
-            color: #D85A30;
-            font-weight: 500;
-        }
+  .user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 
-        .option::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 3px;
-            background: #D85A30;
-            transform: scaleY(0);
-            transform-origin: top;
-            transition: transform 0.3s ease;
-        }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4ade80, #22d3ee);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #0f1117;
+    flex-shrink: 0;
+  }
 
-        .option.selected::before {
-            transform: scaleY(1);
-        }
+  .user-info { flex: 1; min-width: 0; }
+  .user-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role { font-size: 11px; color: var(--text3); }
 
-        .button-group {
-            display: flex;
-            gap: 12px;
-            margin-top: 32px;
-            justify-content: space-between;
-        }
+  /* Main content */
+  .main {
+    margin-left: 220px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
 
-        button {
-            flex: 1;
-            padding: 14px 24px;
-            border: 1.5px solid #D85A30;
-            background: white;
-            color: #D85A30;
-            font-weight: 500;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 15px;
-            font-family: inherit;
-        }
+  .topbar {
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 50;
+  }
 
-        button.next {
-            background: linear-gradient(135deg, #D85A30, #D4537E);
-            color: white;
-            border: none;
-        }
+  .page-title { font-size: 16px; font-weight: 500; color: var(--text); letter-spacing: -0.2px; }
+  .page-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
 
-        button.next:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(216, 90, 48, 0.3);
-        }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.15s;
+    font-family: var(--font);
+  }
 
-        .hidden {
-            display: none;
-        }
+  .btn-primary {
+    background: var(--accent);
+    color: #0a1a0f;
+  }
+  .btn-primary:hover { background: #22c55e; }
 
-        .result-section {
-            text-align: center;
-            animation: slideUp 0.6s ease-out;
-        }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border2);
+  }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
 
-        .result-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
+  /* Content area */
+  .content { padding: 28px 32px; flex: 1; }
 
-        .result-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #222;
-            margin-bottom: 16px;
-        }
+  /* Sections */
+  .section { display: none; }
+  .section.active { display: block; animation: fadeIn 0.2s ease; }
 
-        .result-message {
-            font-size: 15px;
-            color: #666;
-            margin-bottom: 32px;
-            line-height: 1.6;
-        }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-        .cta-button {
-            width: 100%;
-            padding: 16px 24px;
-            background: linear-gradient(135deg, #D85A30, #D4537E);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-            font-family: inherit;
-        }
+  /* Stats row */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
 
-        .cta-button:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(216, 90, 48, 0.35);
-        }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
 
-        .sub-text {
-            margin-top: 16px;
-            font-size: 13px;
-            color: #999;
-        }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .stat-value { font-size: 26px; font-weight: 600; color: var(--text); line-height: 1; font-family: var(--mono); letter-spacing: -1px; }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 6px; }
 
-        .icon-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 44px;
-            height: 44px;
-            background: rgba(216, 90, 48, 0.1);
-            border-radius: 12px;
-            margin-bottom: 16px;
-            font-size: 24px;
-        }
+  .stat-card.green .stat-value { color: var(--accent); }
+  .stat-card.amber .stat-value { color: var(--amber); }
+  .stat-card.blue .stat-value { color: var(--blue); }
 
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+  /* Table */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
 
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-    </style>
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .card-title { font-size: 13.5px; font-weight: 500; color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    padding: 12px 20px;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 14px 20px;
+    font-size: 13.5px;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: var(--surface2); }
+
+  td .primary { color: var(--text); font-weight: 500; }
+  td .mono { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 500;
+  }
+
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+
+  .badge-green { background: var(--accent-dim); color: var(--accent); }
+  .badge-green::before { background: var(--accent); }
+
+  .badge-amber { background: var(--amber-dim); color: var(--amber); }
+  .badge-amber::before { background: var(--amber); }
+
+  .badge-blue { background: var(--blue-dim); color: var(--blue); }
+  .badge-blue::before { background: var(--blue); }
+
+  .badge-retirado { background: rgba(139,144,160,0.12); color: var(--text2); }
+  .badge-retirado::before { background: var(--text2); }
+
+  .btn-retirar {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2);
+    font-family: var(--font);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-retirar:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(74,222,128,0.3); }
+
+  /* Modal retirada */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 28px;
+    width: 400px;
+    max-width: 90vw;
+    animation: fadeIn 0.2s ease;
+  }
+  .modal-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .modal-sub { font-size: 12.5px; color: var(--text3); margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions .btn { flex: 1; justify-content: center; }
+
+  /* Form section */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-full { grid-column: 1 / -1; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; color: var(--text2); font-weight: 500; }
+
+  .field input, .field select, .field textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: var(--font);
+    transition: border-color 0.15s;
+    outline: none;
+  }
+
+  .field input::placeholder, .field textarea::placeholder { color: var(--text3); }
+
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  .field select option { background: var(--surface2); }
+  .field textarea { resize: vertical; min-height: 80px; }
+
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-width: 640px;
+  }
+
+  .form-title { font-size: 14px; font-weight: 500; margin-bottom: 20px; color: var(--text); }
+
+  .notify-box {
+    background: var(--accent-dim);
+    border: 1px solid rgba(74,222,128,0.2);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: var(--accent);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .success-toast {
+    position: fixed; bottom: 28px; right: 28px;
+    background: var(--accent);
+    color: #0a1a0f;
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .success-toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 13px; }
+
+  /* Moradores section */
+  .morador-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+
+  .morador-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    display: flex; align-items: center; gap: 14px;
+    transition: border-color 0.15s;
+  }
+
+  .morador-card:hover { border-color: var(--border2); }
+
+  .morador-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600;
+    color: var(--text2);
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .morador-info { flex: 1; min-width: 0; }
+  .morador-name { font-size: 13.5px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .morador-apto { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+  .morador-wpp { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  .section-intro { font-size: 13px; color: var(--text3); margin-bottom: 20px; line-height: 1.6; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 999px; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">Bem-vinda!</div>
-            <h1>Descubra os Melhores Exercícios para Você</h1>
-            <p>Responda 5 perguntas rápidas e receba um plano personalizado de pilates e exercícios para fazer em casa</p>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-badge">
+      <span class="logo-dot"></span>
+      PortaFácil
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:4px;">Cond. Vista Verde</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="navigate('dashboard', this)">
+      <span class="nav-icon">▦</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="navigate('registrar', this)">
+      <span class="nav-icon">＋</span> Registrar encomenda
+    </div>
+    <div class="nav-item" onclick="navigate('encomendas', this)">
+      <span class="nav-icon">◫</span> Encomendas
+      <span class="nav-badge" id="badge-count">3</span>
+    </div>
+    <div class="nav-item" onclick="navigate('moradores', this)">
+      <span class="nav-icon">◎</span> Moradores
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar">JR</div>
+      <div class="user-info">
+        <div class="user-name">José Ribeiro</div>
+        <div class="user-role">Porteiro · Turno A</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="page-sub" id="page-sub">Visão geral do dia</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" onclick="navigate('registrar', document.querySelector('[onclick*=\"registrar\"]'))">＋ Nova encomenda</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="section-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card green">
+          <div class="stat-label">Hoje</div>
+          <div class="stat-value" id="stat-hoje">3</div>
+          <div class="stat-sub">encomendas registradas</div>
         </div>
-
-        <div class="quiz-card">
-            <!-- Quiz Section -->
-            <div id="quizSection">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-
-                <div class="question-section">
-                    <div class="question-text" id="questionText"></div>
-                    <div class="options" id="optionsContainer"></div>
-                </div>
-
-                <div class="button-group">
-                    <button id="prevBtn" onclick="previousQuestion()" style="visibility: hidden;">← Anterior</button>
-                    <button class="next" id="nextBtn" onclick="nextQuestion()" disabled>Próxima →</button>
-                </div>
-            </div>
-
-            <!-- Result Section -->
-            <div id="resultSection" class="result-section hidden">
-                <div class="icon-badge">🎉</div>
-                <div class="result-title" id="resultTitle"></div>
-                <div class="result-message" id="resultMessage"></div>
-                <button class="cta-button" onclick="irParaKiwify()">Obtenha seu Ebook de Exercícios →</button>
-                <div class="sub-text">Plano personalizado baseado em suas respostas</div>
-            </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Pendentes</div>
+          <div class="stat-value" id="stat-pendentes">2</div>
+          <div class="stat-sub">aguardando retirada</div>
         </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Este mês</div>
+          <div class="stat-value">47</div>
+          <div class="stat-sub">total de entregas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Notificações</div>
+          <div class="stat-value">100%</div>
+          <div class="stat-sub">taxa de entrega</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Últimas encomendas</span>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;" onclick="navigate('encomendas', document.querySelector('[onclick*=\"encomendas\"]'))">Ver todas →</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Morador</th>
+              <th>Entregador</th>
+              <th>Tipo</th>
+              <th>Horário</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-dashboard"></tbody>
+        </table>
+      </div>
     </div>
 
-    <script>
-        const questions = [
-            {
-                question: "Qual é sua idade?",
-                options: ["Menos de 60 anos", "60-70 anos", "71-80 anos", "Mais de 80 anos"]
-            },
-            {
-                question: "Você já pratica algum tipo de exercício?",
-                options: ["Nunca pratiquei", "Raramente pratico", "Pratico 1-2x por semana", "Pratico mais de 3x por semana"]
-            },
-            {
-                question: "Quais são suas principais limitações?",
-                options: ["Nenhuma", "Dores nas costas", "Problemas de joelho/quadril", "Múltiplas limitações"]
-            },
-            {
-                question: "Quanto tempo você pode dedicar aos exercícios?",
-                options: ["Até 15 minutos", "15-30 minutos", "30-45 minutos", "Mais de 45 minutos"]
-            },
-            {
-                question: "Qual é seu principal objetivo?",
-                options: ["Melhorar flexibilidade", "Fortalecer músculos", "Aumentar equilíbrio", "Todos os anteriores"]
-            }
-        ];
+    <!-- REGISTRAR -->
+    <div class="section" id="section-registrar">
+      <div class="form-card">
+        <div class="form-title">Nova entrega</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Morador / Apartamento</label>
+            <select id="f-morador">
+              <option value="">Selecione o morador...</option>
+              <option value="Maria Silva|42">Maria Silva — Apto 42</option>
+              <option value="Carlos Mota|87">Carlos Mota — Apto 87</option>
+              <option value="Ana Beatriz|13">Ana Beatriz — Apto 13</option>
+              <option value="Pedro Alves|201">Pedro Alves — Apto 201</option>
+              <option value="Lucia Fernandes|305">Lucia Fernandes — Apto 305</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Nome do entregador</label>
+            <input id="f-entregador" type="text" placeholder="Ex: João Correia"/>
+          </div>
+          <div class="field">
+            <label>Transportadora / Serviço</label>
+            <select id="f-transportadora">
+              <option value="">Selecione...</option>
+              <option>Mercado Livre</option>
+              <option>Amazon</option>
+              <option>Correios</option>
+              <option>iFood</option>
+              <option>Rappi</option>
+              <option>Shopee</option>
+              <option>Outro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Tipo de volume</label>
+            <select id="f-tipo">
+              <option value="">Selecione...</option>
+              <option>Caixa pequena</option>
+              <option>Caixa grande</option>
+              <option>Envelope</option>
+              <option>Sacola</option>
+              <option>Produto frágil</option>
+            </select>
+          </div>
+          <div class="field form-full">
+            <label>Observação (opcional)</label>
+            <textarea id="f-obs" placeholder="Ex: produto frágil, necessita refrigeração..."></textarea>
+          </div>
+        </div>
 
-        const resultTexts = {
-            "Menos de 60 anos": "Exercícios Avançados",
-            "60-70 anos": "Exercícios Moderados",
-            "71-80 anos": "Exercícios Adapatados",
-            "Mais de 80 anos": "Exercícios Gentis"
-        };
+        <div class="notify-box">
+          ✓ Notificação WhatsApp será enviada automaticamente ao morador
+        </div>
 
-        let currentQuestion = 0;
-        let selectedAnswers = [null, null, null, null, null];
+        <button class="btn btn-primary" onclick="registrar()" style="width:100%;justify-content:center;padding:11px;">
+          Registrar e notificar →
+        </button>
+      </div>
+    </div>
 
-        function updateQuestion() {
-            const question = questions[currentQuestion];
-            document.getElementById("questionText").textContent = question.question;
+    <!-- ENCOMENDAS -->
+    <div class="section" id="section-encomendas">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Todas as encomendas</span>
+          <span style="font-size:12px;color:var(--text3);" id="total-label">3 registros</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Morador</th>
+              <th>Entregador</th>
+              <th>Tipo</th>
+              <th>Transportadora</th>
+              <th>Horário</th>
+              <th>Status</th>
+              <th>Retirada por</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-encomendas"></tbody>
+        </table>
+      </div>
+    </div>
 
-            const optionsContainer = document.getElementById("optionsContainer");
-            optionsContainer.innerHTML = "";
+    <!-- MORADORES -->
+    <div class="section" id="section-moradores">
+      <p class="section-intro">Cadastro de moradores do condomínio. Cada morador precisa de um número WhatsApp válido para receber notificações.</p>
+      <div class="morador-grid" id="grid-moradores"></div>
+    </div>
 
-            question.options.forEach((option, index) => {
-                const button = document.createElement("button");
-                button.textContent = option;
-                button.className = "option";
-                if (selectedAnswers[currentQuestion] === index) {
-                    button.classList.add("selected");
-                }
-                button.onclick = () => selectOption(index);
-                optionsContainer.appendChild(button);
-            });
+  </div>
+</div>
 
-            updateProgress();
-            updateButtons();
-        }
+<div class="modal-overlay" id="modal-retirada">
+  <div class="modal">
+    <div class="modal-title">Confirmar retirada</div>
+    <div class="modal-sub" id="modal-desc">Marque quem retirou a encomenda na portaria.</div>
+    <div class="field">
+      <label>Retirado por</label>
+      <input id="modal-quem" type="text" placeholder="Nome de quem pegou na portaria..."/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarRetirada()">✓ Confirmar retirada</button>
+    </div>
+  </div>
+</div>
 
-        function selectOption(index) {
-            selectedAnswers[currentQuestion] = index;
-            updateQuestion();
-        }
+<div class="success-toast" id="toast">
+  ✓ <span id="toast-msg">Encomenda registrada e notificação enviada!</span>
+</div>
 
-        function nextQuestion() {
-            if (currentQuestion < questions.length - 1) {
-                currentQuestion++;
-                updateQuestion();
-            } else {
-                showResults();
-            }
-        }
+<script>
+const moradores = [
+  { nome: 'Maria Silva',      apto: '42',  wpp: '(21) 99999-1111', iniciais: 'MS' },
+  { nome: 'Carlos Mota',      apto: '87',  wpp: '(21) 99999-2222', iniciais: 'CM' },
+  { nome: 'Ana Beatriz',      apto: '13',  wpp: '(21) 99999-3333', iniciais: 'AB' },
+  { nome: 'Pedro Alves',      apto: '201', wpp: '(21) 99999-4444', iniciais: 'PA' },
+  { nome: 'Lucia Fernandes',  apto: '305', wpp: '(21) 99999-5555', iniciais: 'LF' },
+];
 
-        function previousQuestion() {
-            if (currentQuestion > 0) {
-                currentQuestion--;
-                updateQuestion();
-            }
-        }
+let encomendas = [
+  { morador: 'Maria Silva', apto: '42', entregador: 'João Correia',  tipo: 'Caixa pequena', transportadora: 'Mercado Livre', hora: '14:22', status: 'Retirado',   retiradoPor: 'Maria Silva',  horaRetirada: '16:10' },
+  { morador: 'Carlos Mota', apto: '87', entregador: 'Paulo Santos',  tipo: 'Envelope',      transportadora: 'Correios',      hora: '15:05', status: 'Notificado', retiradoPor: '',             horaRetirada: '' },
+  { morador: 'Ana Beatriz', apto: '13', entregador: 'Marcos Lima',   tipo: 'Sacola',        transportadora: 'iFood',         hora: '15:41', status: 'Pendente',   retiradoPor: '',             horaRetirada: '' },
+];
 
-        function updateProgress() {
-            const progress = ((currentQuestion + 1) / questions.length) * 100;
-            document.getElementById("progressFill").style.width = progress + "%";
-        }
+function badgeHtml(status) {
+  if (status === 'Retirado') return `<span class="badge badge-retirado">Retirado</span>`;
+  if (status === 'Notificado') return `<span class="badge badge-green">Notificado</span>`;
+  return `<span class="badge badge-amber">Pendente</span>`;
+}
 
-        function updateButtons() {
-            const nextBtn = document.getElementById("nextBtn");
-            const prevBtn = document.getElementById("prevBtn");
+function renderTabela(tbody, rows) {
+  if (!tbody) return;
+  tbody.innerHTML = rows.map(e => `
+    <tr>
+      <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
+      <td>${e.entregador}</td>
+      <td>${e.tipo}</td>
+      ${rows[0].transportadora !== undefined ? `<td>${e.transportadora}</td>` : ''}
+      <td class="mono">${e.hora}</td>
+      <td>${badgeHtml(e.status)}</td>
+    </tr>
+  `).join('');
+}
 
-            nextBtn.disabled = selectedAnswers[currentQuestion] === null;
-            nextBtn.textContent = currentQuestion === questions.length - 1 ? "Ver Resultados →" : "Próxima →";
+function renderDashboard() {
+  const tbody = document.getElementById('tabela-dashboard');
+  tbody.innerHTML = encomendas.slice(-5).reverse().map((e, i) => {
+    const idx = encomendas.indexOf(e);
+    const acaoBotao = e.status !== 'Retirado'
+      ? `<button class="btn-retirar" onclick="abrirModal(${idx})">↓ Registrar retirada</button>`
+      : `<span style="font-size:11px;color:var(--text3);">por ${e.retiradoPor}</span>`;
+    return `
+    <tr>
+      <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
+      <td>${e.entregador}</td>
+      <td>${e.tipo}</td>
+      <td class="mono">${e.hora}</td>
+      <td style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${badgeHtml(e.status)} ${acaoBotao}</td>
+    </tr>`;
+  }).join('');
+  // update stats
+  const pendentes = encomendas.filter(e => e.status !== 'Retirado').length;
+  document.getElementById('stat-pendentes').textContent = pendentes;
+}
 
-            if (currentQuestion > 0) {
-                prevBtn.style.visibility = "visible";
-            } else {
-                prevBtn.style.visibility = "hidden";
-            }
-        }
+function renderEncomendas() {
+  const tbody = document.getElementById('tabela-encomendas');
+  tbody.innerHTML = encomendas.slice().reverse().map(e => {
+    const idx = encomendas.indexOf(e);
+    const retiradaInfo = e.status === 'Retirado'
+      ? `<div class="primary" style="font-size:12.5px;">${e.retiradoPor}</div><div class="mono">${e.horaRetirada}</div>`
+      : `<button class="btn-retirar" onclick="abrirModal(${idx})">↓ Registrar retirada</button>`;
+    return `
+    <tr>
+      <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
+      <td>${e.entregador}</td>
+      <td>${e.tipo}</td>
+      <td>${e.transportadora}</td>
+      <td class="mono">${e.hora}</td>
+      <td>${badgeHtml(e.status)}</td>
+      <td>${retiradaInfo}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('total-label').textContent = `${encomendas.length} registros`;
+}
 
-        function showResults() {
-            const ageAnswer = questions[0].options[selectedAnswers[0]];
-            const resultType = resultTexts[ageAnswer];
-            
-            let message = "";
-            const objective = questions[4].options[selectedAnswers[4]];
-            
-            message = "Baseado em suas respostas, montamos um plano especial com ênfase em " + objective.toLowerCase() + ". ";
-            message += "Nosso ebook inclui exercícios de pilates e alongamentos seguros para sua faixa etária, com progressão gradual e adaptações conforme necessário.";
+function renderMoradores() {
+  document.getElementById('grid-moradores').innerHTML = moradores.map(m => `
+    <div class="morador-card">
+      <div class="morador-avatar">${m.iniciais}</div>
+      <div class="morador-info">
+        <div class="morador-name">${m.nome}</div>
+        <div class="morador-apto">Apto ${m.apto}</div>
+        <div class="morador-wpp">${m.wpp}</div>
+      </div>
+    </div>
+  `).join('');
+}
 
-            document.getElementById("resultTitle").textContent = resultType + " para Você!";
-            document.getElementById("resultMessage").textContent = message;
+const pageTitles = {
+  dashboard:  { title: 'Dashboard',             sub: 'Visão geral do dia' },
+  registrar:  { title: 'Registrar encomenda',   sub: 'Nova entrega recebida' },
+  encomendas: { title: 'Encomendas',             sub: 'Histórico completo' },
+  moradores:  { title: 'Moradores',              sub: 'Cadastro do condomínio' },
+};
 
-            document.getElementById("quizSection").classList.add("hidden");
-            document.getElementById("resultSection").classList.remove("hidden");
-        }
+function navigate(page, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + page).classList.add('active');
+  if (el) el.classList.add('active');
+  const p = pageTitles[page];
+  document.getElementById('page-title').textContent = p.title;
+  document.getElementById('page-sub').textContent = p.sub;
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'encomendas') renderEncomendas();
+  if (page === 'moradores') renderMoradores();
+}
 
-        function irParaKiwify() {
-            // SUBSTITUA ESTE URL PELO LINK DO SEU EBOOK NO KIWIFY
-            window.open("https://pay.kiwify.com.br/s4yPcbK?afid=vCq4UuL3", "_blank");
-        }
+function registrar() {
+  const moradorVal = document.getElementById('f-morador').value;
+  const entregador = document.getElementById('f-entregador').value.trim();
+  const transportadora = document.getElementById('f-transportadora').value;
+  const tipo = document.getElementById('f-tipo').value;
 
-        // Initialize
-        updateQuestion();
-    </script>
+  if (!moradorVal || !entregador || !transportadora || !tipo) {
+    showToast('Preencha todos os campos obrigatórios.', true);
+    return;
+  }
+
+  const [nome, apto] = moradorVal.split('|');
+  const agora = new Date();
+  const hora = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+
+  encomendas.push({ morador: nome, apto, entregador, tipo, transportadora, hora, status: 'Notificado', retiradoPor: '', horaRetirada: '' });
+
+  document.getElementById('f-morador').value = '';
+  document.getElementById('f-entregador').value = '';
+  document.getElementById('f-transportadora').value = '';
+  document.getElementById('f-tipo').value = '';
+  document.getElementById('f-obs').value = '';
+
+  document.getElementById('stat-hoje').textContent = encomendas.length;
+  document.getElementById('badge-count').textContent = encomendas.length;
+
+  showToast(`Encomenda de ${nome} registrada! WhatsApp enviado ✓`);
+  navigate('encomendas', document.querySelector('[onclick*="encomendas"]'));
+}
+
+function showToast(msg, error = false) {
+  const t = document.getElementById('toast');
+  t.style.background = error ? 'var(--red)' : 'var(--accent)';
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+let modalIdx = null;
+
+function abrirModal(idx) {
+  modalIdx = idx;
+  const e = encomendas[idx];
+  document.getElementById('modal-desc').textContent = `Encomenda de ${e.morador} (Apto ${e.apto}) — ${e.tipo} via ${e.transportadora}`;
+  document.getElementById('modal-quem').value = '';
+  document.getElementById('modal-retirada').classList.add('open');
+  setTimeout(() => document.getElementById('modal-quem').focus(), 100);
+}
+
+function fecharModal() {
+  document.getElementById('modal-retirada').classList.remove('open');
+  modalIdx = null;
+}
+
+function confirmarRetirada() {
+  const quem = document.getElementById('modal-quem').value.trim();
+  if (!quem) {
+    document.getElementById('modal-quem').focus();
+    return;
+  }
+  const agora = new Date();
+  const hora = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+  encomendas[modalIdx].status = 'Retirado';
+  encomendas[modalIdx].retiradoPor = quem;
+  encomendas[modalIdx].horaRetirada = hora;
+  fecharModal();
+  renderDashboard();
+  renderEncomendas();
+  showToast(`Retirada confirmada — ${quem} pegou a encomenda ✓`);
+}
+
+// Fechar modal clicando fora
+document.addEventListener('click', e => {
+  if (e.target.id === 'modal-retirada') fecharModal();
+});
+
+renderDashboard();
+renderMoradores();
+</script>
 </body>
 </html>
