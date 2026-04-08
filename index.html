@@ -2,13 +2,63 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<meta name="mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>PortaFácil — Sistema de Encomendas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+
+<!-- =====================================================================
+  PORTAFÁCIL — VERSÃO INTEGRADA (custo zero para testes)
+  
+  PASSO 1 — SUPABASE (banco de dados grátis)
+    1. Crie conta em https://supabase.com
+    2. Crie um novo projeto
+    3. Vá em SQL Editor e rode o SQL abaixo para criar as tabelas:
+    
+       create table encomendas (
+         id uuid default gen_random_uuid() primary key,
+         morador text not null,
+         apto text not null,
+         entregador text not null,
+         tipo text not null,
+         transportadora text not null,
+         hora text not null,
+         status text default 'Pendente',
+         retirado_por text default '',
+         hora_retirada text default '',
+         created_at timestamp default now()
+       );
+       alter table encomendas enable row level security;
+       create policy "acesso livre teste" on encomendas for all using (true);
+
+    4. Vá em Project Settings > API
+    5. Copie a "Project URL" e a "anon public key"
+    6. Cole nas variáveis SUPABASE_URL e SUPABASE_KEY abaixo
+
+  PASSO 2 — N8N CLOUD (automação grátis)
+    1. Crie conta em https://n8n.io (free tier = 5 workflows)
+    2. Crie um novo workflow
+    3. Adicione nó "Webhook" — copie a URL gerada
+    4. Adicione nó "HTTP Request" configurado para a API do WhatsApp
+       (veja instruções no README abaixo)
+    5. Cole a URL do webhook em N8N_WEBHOOK_URL abaixo
+    6. Ative o workflow no n8n
+
+  PASSO 3 — WHATSAPP META (grátis, 1000 msgs/mês)
+    1. Acesse https://developers.facebook.com
+    2. Crie um app > Business > WhatsApp
+    3. Em "WhatsApp > Getting Started" você recebe um número de teste
+       e um token temporário
+    4. Configure no n8n: POST https://graph.facebook.com/v18.0/SEU_PHONE_ID/messages
+       Header: Authorization: Bearer SEU_TOKEN
+       Body: { "messaging_product": "whatsapp", "to": "55NUMERO", 
+               "type": "text", "text": { "body": "{{$json.mensagem}}" } }
+    
+  Para testar sem WhatsApp real:
+    Deixe N8N_WEBHOOK_URL vazio — o app funciona normalmente,
+    só não envia mensagem de verdade.
+====================================================================== -->
+
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -34,16 +84,6 @@
     --radius-sm: 8px;
     --font: 'DM Sans', sans-serif;
     --mono: 'DM Mono', monospace;
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-left: env(safe-area-inset-left, 0px);
-    --safe-right: env(safe-area-inset-right, 0px);
-    --bnav-h: 64px;
-  }
-
-  html {
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
   }
 
   body {
@@ -51,14 +91,59 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    min-height: 100dvh;
     display: flex;
     overflow-x: hidden;
-    -webkit-tap-highlight-color: transparent;
-    overscroll-behavior-y: none;
   }
 
-  /* ── SIDEBAR ── */
+  /* Config banner */
+  .config-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+    background: #1a1200;
+    border-bottom: 1px solid rgba(251,191,36,0.3);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 12.5px; color: var(--amber);
+  }
+  .config-banner a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+  .config-banner button {
+    margin-left: auto; background: transparent; border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 6px; padding: 4px 10px; color: var(--amber); font-size: 11px;
+    cursor: pointer; font-family: var(--font);
+  }
+  .config-banner button:hover { background: rgba(251,191,36,0.1); }
+
+  /* Config modal */
+  .config-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8); z-index: 600;
+    align-items: center; justify-content: center;
+  }
+  .config-modal-overlay.open { display: flex; }
+  .config-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 28px; width: 500px; max-width: 95vw;
+  }
+  .config-modal h2 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .config-modal p { font-size: 12.5px; color: var(--text3); margin-bottom: 20px; line-height: 1.6; }
+  .config-modal .field { margin-bottom: 14px; }
+  .config-modal label { font-size: 12px; color: var(--text2); font-weight: 500; display: block; margin-bottom: 6px; }
+  .config-modal input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 13px; color: var(--text); font-family: var(--mono); outline: none;
+  }
+  .config-modal input:focus { border-color: var(--accent); }
+  .config-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .config-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .config-actions .btn { flex: 1; justify-content: center; }
+
+  /* Layout com banner */
+  body.has-banner .sidebar { top: 44px; }
+  body.has-banner .main { padding-top: 44px; }
+
+  /* Sidebar */
   .sidebar {
     width: 220px;
     min-height: 100vh;
@@ -89,11 +174,10 @@
 
   .logo-dot {
     width: 8px; height: 8px;
-    background: var(--accent);
     border-radius: 50%;
+    background: var(--accent);
     box-shadow: 0 0 8px var(--accent-glow);
     animation: pulse 2s ease-in-out infinite;
-    flex-shrink: 0;
   }
 
   @keyframes pulse {
@@ -121,12 +205,9 @@
     transition: all 0.15s;
     border: 1px solid transparent;
     user-select: none;
-    touch-action: manipulation;
-    min-height: 44px;
   }
 
   .nav-item:hover { background: var(--surface2); color: var(--text); }
-  .nav-item:active { opacity: 0.7; }
 
   .nav-item.active {
     background: var(--accent-dim);
@@ -152,11 +233,7 @@
     border-top: 1px solid var(--border);
   }
 
-  .user-card {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+  .user-card { display: flex; align-items: center; gap: 10px; }
 
   .avatar {
     width: 32px; height: 32px;
@@ -171,14 +248,13 @@
   .user-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .user-role { font-size: 11px; color: var(--text3); }
 
-  /* ── MAIN ── */
+  /* Main content */
   .main {
     margin-left: 220px;
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    min-height: 100dvh;
   }
 
   .topbar {
@@ -197,22 +273,17 @@
   .topbar-actions { display: flex; gap: 10px; align-items: center; }
 
   .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    display: inline-flex; align-items: center; gap: 6px;
     padding: 8px 14px;
     border-radius: var(--radius-sm);
     font-size: 13px; font-weight: 500;
     cursor: pointer; border: none; transition: all 0.15s;
     font-family: var(--font);
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    min-height: 44px;
-    min-width: 44px;
-    white-space: nowrap;
   }
 
   .btn-primary { background: var(--accent); color: #0a1a0f; }
   .btn-primary:hover { background: #22c55e; }
-  .btn-primary:active { background: #16a34a; transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .btn-ghost {
     background: transparent;
@@ -220,18 +291,14 @@
     border: 1px solid var(--border2);
   }
   .btn-ghost:hover { background: var(--surface2); color: var(--text); }
-  .btn-ghost:active { opacity: 0.7; transform: scale(0.97); }
 
-  /* ── CONTENT ── */
   .content { padding: 28px 32px; flex: 1; }
 
-  /* ── SECTIONS ── */
   .section { display: none; }
   .section.active { display: block; animation: fadeIn 0.2s ease; }
 
   @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* ── STATS ── */
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -254,7 +321,6 @@
   .stat-card.amber .stat-value { color: var(--amber); }
   .stat-card.blue .stat-value { color: var(--blue); }
 
-  /* ── TABLE ── */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -292,53 +358,43 @@
 
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--surface2); }
-
   td .primary { color: var(--text); font-weight: 500; }
   td .mono { font-family: var(--mono); font-size: 12px; color: var(--text3); }
 
-  /* ── BADGES ── */
   .badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 9px;
     border-radius: 999px;
     font-size: 11px; font-weight: 500;
-    white-space: nowrap;
   }
-  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
   .badge-green { background: var(--accent-dim); color: var(--accent); }
   .badge-green::before { background: var(--accent); }
   .badge-amber { background: var(--amber-dim); color: var(--amber); }
   .badge-amber::before { background: var(--amber); }
-  .badge-blue { background: var(--blue-dim); color: var(--blue); }
-  .badge-blue::before { background: var(--blue); }
   .badge-retirado { background: rgba(139,144,160,0.12); color: var(--text2); }
   .badge-retirado::before { background: var(--text2); }
 
-  /* ── BTN RETIRAR ── */
   .btn-retirar {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 6px;
-    font-size: 12px; font-weight: 500;
+    font-size: 11px; font-weight: 500;
     cursor: pointer; border: 1px solid var(--border2);
     background: transparent; color: var(--text2);
     font-family: var(--font);
     transition: all 0.15s;
     white-space: nowrap;
-    touch-action: manipulation;
-    min-height: 36px;
   }
   .btn-retirar:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(74,222,128,0.3); }
-  .btn-retirar:active { transform: scale(0.96); }
 
-  /* ── MODAL ── */
   .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,0.6); z-index: 200;
     align-items: center; justify-content: center;
   }
   .modal-overlay.open { display: flex; }
-
   .modal {
     background: var(--surface);
     border: 1px solid var(--border2);
@@ -349,14 +405,12 @@
     animation: fadeIn 0.2s ease;
   }
   .modal-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-  .modal-sub { font-size: 12.5px; color: var(--text3); margin-bottom: 20px; line-height: 1.5; }
+  .modal-sub { font-size: 12.5px; color: var(--text3); margin-bottom: 20px; }
   .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-  .modal-actions .btn { flex: 1; }
+  .modal-actions .btn { flex: 1; justify-content: center; }
 
-  /* ── FORM ── */
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
   .form-full { grid-column: 1 / -1; }
-
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field label { font-size: 12px; color: var(--text2); font-weight: 500; }
 
@@ -365,32 +419,20 @@
     border: 1px solid var(--border2);
     border-radius: var(--radius-sm);
     padding: 10px 14px;
-    font-size: 16px; /* prevents iOS zoom */
+    font-size: 14px;
     color: var(--text);
     font-family: var(--font);
     transition: border-color 0.15s;
     outline: none;
-    width: 100%;
-    -webkit-appearance: none;
-    appearance: none;
   }
 
   .field input::placeholder, .field textarea::placeholder { color: var(--text3); }
-
   .field input:focus, .field select:focus, .field textarea:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-dim);
   }
 
-  .field select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555b6e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 36px;
-    cursor: pointer;
-  }
-
-  .field select option { background: var(--surface2); color: var(--text); font-size: 16px; }
+  .field select option { background: var(--surface2); }
   .field textarea { resize: vertical; min-height: 80px; }
 
   .form-card {
@@ -414,7 +456,12 @@
     margin-bottom: 16px;
   }
 
-  /* ── TOAST ── */
+  .notify-box.modo-demo {
+    background: var(--amber-dim);
+    border-color: rgba(251,191,36,0.2);
+    color: var(--amber);
+  }
+
   .success-toast {
     position: fixed; bottom: 28px; right: 28px;
     background: var(--accent);
@@ -426,11 +473,11 @@
     display: flex; align-items: center; gap: 8px;
     transform: translateY(80px); opacity: 0;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    max-width: calc(100vw - 56px);
   }
+  .success-toast.error { background: var(--red); }
   .success-toast.show { transform: translateY(0); opacity: 1; }
 
-  /* ── MORADORES ── */
+  .loading-row td { text-align: center; color: var(--text3); padding: 32px; }
   .empty { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 13px; }
 
   .morador-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
@@ -461,244 +508,109 @@
   .morador-apto { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
   .morador-wpp { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
-  .divider { height: 1px; background: var(--border); margin: 24px 0; }
   .section-intro { font-size: 13px; color: var(--text3); margin-bottom: 20px; line-height: 1.6; }
 
-  /* ── SCROLLBAR ── */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 999px; }
 
-  /* ════════════════════════════════════════════
-     MOBILE — ≤ 768px
-  ════════════════════════════════════════════ */
   @media (max-width: 768px) {
-
-    /* Sidebar vira overlay deslizante */
     .sidebar {
-      width: min(280px, 85vw);
+      width: 260px;
       transform: translateX(-100%);
-      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 0.25s ease;
       z-index: 300;
-      padding-top: var(--safe-top);
     }
     .sidebar.open { transform: translateX(0); }
-
-    /* Backdrop escuro */
-    .sidebar-backdrop {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55);
-      z-index: 299;
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
-    }
+    .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 299; }
     .sidebar-backdrop.open { display: block; }
-
-    /* Main ocupa tudo */
-    .main {
-      margin-left: 0;
-      padding-bottom: calc(var(--bnav-h) + var(--safe-bottom));
-    }
-
-    /* Topbar mobile */
-    .topbar {
-      padding: 12px 16px;
-      padding-top: calc(12px + var(--safe-top));
-      gap: 8px;
-    }
-
-    /* Botão hamburguer */
+    .main { margin-left: 0; padding-bottom: 70px; }
+    .topbar { padding: 14px 16px; }
     .menu-btn {
       display: flex; align-items: center; justify-content: center;
-      width: 40px; height: 40px;
+      width: 36px; height: 36px;
       background: var(--surface2); border: 1px solid var(--border2);
       border-radius: var(--radius-sm); cursor: pointer;
-      font-size: 18px; color: var(--text2); flex-shrink: 0;
-      touch-action: manipulation;
+      font-size: 16px; color: var(--text2); flex-shrink: 0;
+      margin-right: 10px;
     }
-    .menu-btn:active { opacity: 0.7; }
-
-    /* Botão "Nova encomenda" — ícone apenas */
-    .topbar-actions .btn-nova-label { display: none; }
-    .topbar-actions .btn {
-      padding: 0;
-      width: 40px; height: 40px;
-    }
-
-    /* Content padding menor */
-    .content { padding: 16px 16px calc(16px + var(--safe-bottom)); }
-
-    /* Stats: 2×2 */
-    .stats-grid {
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
+    .content { padding: 16px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
     .stat-card { padding: 14px 16px; }
-    .stat-value { font-size: 24px; }
-
-    /* Formulário coluna única */
-    .form-grid { grid-template-columns: 1fr; gap: 14px; }
-    .form-card { padding: 16px; max-width: 100%; border-radius: var(--radius); }
-
-    /* ── TABELAS → CARDS EMPILHADOS ── */
+    .stat-value { font-size: 22px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-card { padding: 16px; max-width: 100%; }
     table, thead, tbody, th, td, tr { display: block; }
     thead { display: none; }
-
     tr {
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       margin: 0 0 10px 0;
-      padding: 14px 16px;
+      padding: 14px;
       position: relative;
     }
-    tr:last-child { margin-bottom: 0; }
     tr:hover td { background: transparent; }
-
-    td {
-      padding: 3px 0;
-      border: none;
-      font-size: 13px;
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      min-height: unset;
-    }
-
-    td::before {
-      content: attr(data-label);
-      font-size: 10px; color: var(--text3);
-      text-transform: uppercase; letter-spacing: 0.6px;
-      min-width: 88px; flex-shrink: 0;
-      padding-top: 2px;
-    }
-
-    /* Primeira célula = cabeçalho do card */
-    td:first-child {
-      margin-bottom: 8px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-    }
+    td { padding: 3px 0; border: none; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    td::before { content: attr(data-label); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; min-width: 80px; flex-shrink: 0; }
+    td:first-child { margin-bottom: 6px; }
     td:first-child::before { display: none; }
-    td:first-child .primary { font-size: 14.5px; }
-
-    td[data-label="Status"],
-    td[data-label="Retirada por"] {
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    td[data-label="Status"]::before,
-    td[data-label="Retirada por"]::before {
-      padding-top: 4px;
-    }
-
-    /* Linha de separação no card antes de status */
-    td[data-label="Status"] {
-      margin-top: 4px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
-    }
-
-    /* Remove table overflow no card */
-    .card { overflow: visible; }
-    .card-header { padding: 14px 16px; }
-
-    /* Tabela padding interno */
-    table { padding: 12px; }
-
-    /* ── BOTTOM NAV ── */
-    .bottom-nav {
-      display: flex;
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      z-index: 200;
-      height: calc(var(--bnav-h) + var(--safe-bottom));
-      padding-bottom: var(--safe-bottom);
-      padding-left: var(--safe-left);
-      padding-right: var(--safe-right);
-    }
-    .bottom-nav-item {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 3px; cursor: pointer;
-      color: var(--text3); font-size: 10px;
-      transition: color 0.15s; user-select: none;
-      position: relative;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-      min-height: 44px;
-    }
-    .bottom-nav-item:active { opacity: 0.6; }
+    td:first-child .primary { font-size: 14px; }
+    td[data-label="Status"], td[data-label="Retirada por"] { flex-wrap: wrap; }
+    .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); z-index: 200; height: 64px; }
+    .bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: var(--text3); font-size: 10px; transition: color 0.15s; user-select: none; position: relative; }
     .bottom-nav-item.active { color: var(--accent); }
-    .bottom-nav-item .bnav-icon { font-size: 20px; }
-    .bottom-nav-item .bnav-badge {
-      position: absolute; top: 8px; right: calc(50% - 18px);
-      background: var(--accent); color: #0a1a0f;
-      font-size: 9px; font-weight: 700;
-      padding: 1px 5px; border-radius: 999px;
-      font-family: var(--mono);
-      pointer-events: none;
-    }
-
-    /* Toast acima do bottom nav */
-    .success-toast {
-      bottom: calc(var(--bnav-h) + var(--safe-bottom) + 12px);
-      right: 16px; left: 16px;
-      max-width: none;
-      border-radius: var(--radius);
-    }
-
-    /* ── MODAL como bottom sheet em mobile ── */
-    .modal-overlay {
-      align-items: flex-end;
-      padding-bottom: var(--safe-bottom);
-    }
-    .modal {
-      width: 100%;
-      max-width: 100%;
-      border-radius: var(--radius) var(--radius) 0 0;
-      padding: 24px 20px 20px;
-      animation: slideUp 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-      border-bottom: none;
-    }
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-    .modal::before {
-      content: '';
-      display: block;
-      width: 36px; height: 4px;
-      background: var(--border2);
-      border-radius: 999px;
-      margin: 0 auto 20px;
-    }
-
-    /* Inputs maiores no modal */
-    .modal .field input,
-    .modal .field select,
-    .modal .field textarea {
-      padding: 12px 14px;
-    }
-
-    /* Botões de ação no modal maiores */
-    .modal-actions { gap: 10px; }
-    .modal-actions .btn { padding: 14px; font-size: 14px; }
+    .bottom-nav-item .bnav-icon { font-size: 18px; }
+    .bottom-nav-item .bnav-badge { position: absolute; top: 8px; right: calc(50% - 16px); background: var(--accent); color: #0a1a0f; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 999px; font-family: var(--mono); }
+    .success-toast { bottom: 76px; right: 16px; left: 16px; }
+    .modal { width: 92vw; padding: 20px; }
+    .config-banner { font-size: 11px; }
   }
 
-  /* Desktop: esconder bottom nav e menu btn */
   @media (min-width: 769px) {
     .bottom-nav { display: none; }
     .menu-btn { display: none; }
     .sidebar-backdrop { display: none !important; }
-    .topbar-actions .btn-nova-label { display: inline; }
   }
 </style>
 </head>
 <body>
+
+<!-- Banner de configuração (some quando configurado) -->
+<div class="config-banner" id="config-banner">
+  ⚠ Modo demonstração — dados não são salvos.
+  <a onclick="abrirConfig()">Configurar Supabase + n8n para ativar persistência</a>
+  <button onclick="abrirConfig()">Configurar</button>
+</div>
+
+<!-- Modal de configuração -->
+<div class="config-modal-overlay" id="config-modal">
+  <div class="config-modal">
+    <h2>Configurar integrações</h2>
+    <p>Preencha abaixo para ativar banco de dados real e envio de WhatsApp. Tudo gratuito para testes.</p>
+
+    <div class="field">
+      <label>Supabase URL</label>
+      <input id="cfg-url" type="text" placeholder="https://xxxxxxxxxxx.supabase.co"/>
+      <div class="config-hint">Project Settings > API > Project URL</div>
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <label>Supabase Anon Key</label>
+      <input id="cfg-key" type="text" placeholder="eyJhbGciOiJIUzI1NiIsInR5c..."/>
+      <div class="config-hint">Project Settings > API > anon public</div>
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <label>n8n Webhook URL <span style="color:var(--text3);font-weight:400;">(opcional — só para WhatsApp)</span></label>
+      <input id="cfg-webhook" type="text" placeholder="https://sua-instancia.n8n.cloud/webhook/encomenda"/>
+      <div class="config-hint">Deixe vazio para testar sem WhatsApp real</div>
+    </div>
+
+    <div class="config-actions">
+      <button class="btn btn-ghost" onclick="fecharConfig()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConfig()">Salvar e conectar</button>
+    </div>
+  </div>
+</div>
 
 <aside class="sidebar">
   <div class="sidebar-logo">
@@ -718,7 +630,7 @@
     </div>
     <div class="nav-item" onclick="navigate('encomendas', this)">
       <span class="nav-icon">◫</span> Encomendas
-      <span class="nav-badge" id="badge-count">3</span>
+      <span class="nav-badge" id="badge-count">0</span>
     </div>
     <div class="nav-item" onclick="navigate('moradores', this)">
       <span class="nav-icon">◎</span> Moradores
@@ -738,17 +650,15 @@
 
 <div class="main">
   <div class="topbar">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div class="menu-btn" onclick="toggleSidebar()" aria-label="Menu">☰</div>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <div class="menu-btn" onclick="toggleSidebar()">☰</div>
       <div>
         <div class="page-title" id="page-title">Dashboard</div>
         <div class="page-sub" id="page-sub">Visão geral do dia</div>
       </div>
     </div>
     <div class="topbar-actions">
-      <button class="btn btn-ghost" onclick="navigate('registrar', document.querySelector('[onclick*=\'registrar\']'))">
-        <span>＋</span><span class="btn-nova-label"> Nova encomenda</span>
-      </button>
+      <button class="btn btn-ghost" onclick="navigate('registrar', document.querySelector('[onclick*=&quot;registrar&quot;]'))">＋ Nova encomenda</button>
     </div>
   </div>
 
@@ -759,30 +669,30 @@
       <div class="stats-grid">
         <div class="stat-card green">
           <div class="stat-label">Hoje</div>
-          <div class="stat-value" id="stat-hoje">3</div>
-          <div class="stat-sub">registradas</div>
+          <div class="stat-value" id="stat-hoje">—</div>
+          <div class="stat-sub">encomendas registradas</div>
         </div>
         <div class="stat-card amber">
           <div class="stat-label">Pendentes</div>
-          <div class="stat-value" id="stat-pendentes">2</div>
-          <div class="stat-sub">aguardando</div>
+          <div class="stat-value" id="stat-pendentes">—</div>
+          <div class="stat-sub">aguardando retirada</div>
         </div>
         <div class="stat-card blue">
-          <div class="stat-label">Este mês</div>
-          <div class="stat-value">47</div>
-          <div class="stat-sub">entregas</div>
+          <div class="stat-label">Total</div>
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-sub">no histórico</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Notific.</div>
-          <div class="stat-value">100%</div>
-          <div class="stat-sub">taxa</div>
+          <div class="stat-label">WhatsApp</div>
+          <div class="stat-value" id="stat-wpp">—</div>
+          <div class="stat-sub" id="stat-wpp-sub">configurar</div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-header">
           <span class="card-title">Últimas encomendas</span>
-          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;min-height:36px;" onclick="navigate('encomendas', document.querySelector('[onclick*=\'encomendas\']'))">Ver todas →</button>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;" onclick="navigate('encomendas', document.querySelector('[onclick*=&quot;encomendas&quot;]'))">Ver todas →</button>
         </div>
         <table>
           <thead>
@@ -794,7 +704,9 @@
               <th>Status</th>
             </tr>
           </thead>
-          <tbody id="tabela-dashboard"></tbody>
+          <tbody id="tabela-dashboard">
+            <tr class="loading-row"><td colspan="5">Carregando...</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -808,16 +720,16 @@
             <label>Morador / Apartamento</label>
             <select id="f-morador">
               <option value="">Selecione o morador...</option>
-              <option value="Maria Silva|42">Maria Silva — Apto 42</option>
-              <option value="Carlos Mota|87">Carlos Mota — Apto 87</option>
-              <option value="Ana Beatriz|13">Ana Beatriz — Apto 13</option>
-              <option value="Pedro Alves|201">Pedro Alves — Apto 201</option>
-              <option value="Lucia Fernandes|305">Lucia Fernandes — Apto 305</option>
+              <option value="Maria Silva|42|5521999991111">Maria Silva — Apto 42</option>
+              <option value="Carlos Mota|87|5521999992222">Carlos Mota — Apto 87</option>
+              <option value="Ana Beatriz|13|5521999993333">Ana Beatriz — Apto 13</option>
+              <option value="Pedro Alves|201|5521999994444">Pedro Alves — Apto 201</option>
+              <option value="Lucia Fernandes|305|5521999995555">Lucia Fernandes — Apto 305</option>
             </select>
           </div>
           <div class="field">
             <label>Nome do entregador</label>
-            <input id="f-entregador" type="text" placeholder="Ex: João Correia" autocomplete="off"/>
+            <input id="f-entregador" type="text" placeholder="Ex: João Correia"/>
           </div>
           <div class="field">
             <label>Transportadora / Serviço</label>
@@ -849,11 +761,11 @@
           </div>
         </div>
 
-        <div class="notify-box">
-          ✓ Notificação WhatsApp será enviada automaticamente ao morador
+        <div class="notify-box modo-demo" id="notify-status">
+          ⚠ Modo demo — configure o Supabase para salvar de verdade
         </div>
 
-        <button class="btn btn-primary" onclick="registrar()" style="width:100%;padding:13px;font-size:15px;">
+        <button class="btn btn-primary" id="btn-registrar" onclick="registrar()" style="width:100%;justify-content:center;padding:11px;">
           Registrar e notificar →
         </button>
       </div>
@@ -864,7 +776,7 @@
       <div class="card">
         <div class="card-header">
           <span class="card-title">Todas as encomendas</span>
-          <span style="font-size:12px;color:var(--text3);" id="total-label">3 registros</span>
+          <span style="font-size:12px;color:var(--text3);" id="total-label">— registros</span>
         </div>
         <table>
           <thead>
@@ -878,7 +790,9 @@
               <th>Retirada por</th>
             </tr>
           </thead>
-          <tbody id="tabela-encomendas"></tbody>
+          <tbody id="tabela-encomendas">
+            <tr class="loading-row"><td colspan="7">Carregando...</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -890,101 +804,305 @@
     </div>
 
   </div>
-</div><!-- end main -->
+</div>
 
 <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
-<!-- Bottom Nav (mobile only) -->
 <nav class="bottom-nav">
   <div class="bottom-nav-item active" id="bnav-dashboard" onclick="navigate('dashboard', this, true)">
-    <span class="bnav-icon">▦</span>
-    <span>Dashboard</span>
+    <span class="bnav-icon">▦</span><span>Dashboard</span>
   </div>
   <div class="bottom-nav-item" id="bnav-registrar" onclick="navigate('registrar', this, true)">
-    <span class="bnav-icon">＋</span>
-    <span>Registrar</span>
+    <span class="bnav-icon">＋</span><span>Registrar</span>
   </div>
   <div class="bottom-nav-item" id="bnav-encomendas" onclick="navigate('encomendas', this, true)">
-    <span class="bnav-icon">◫</span>
-    <span>Encomendas</span>
-    <span class="bnav-badge" id="bnav-badge">3</span>
+    <span class="bnav-icon">◫</span><span>Encomendas</span>
+    <span class="bnav-badge" id="bnav-badge">0</span>
   </div>
   <div class="bottom-nav-item" id="bnav-moradores" onclick="navigate('moradores', this, true)">
-    <span class="bnav-icon">◎</span>
-    <span>Moradores</span>
+    <span class="bnav-icon">◎</span><span>Moradores</span>
   </div>
 </nav>
 
-<!-- Modal retirada -->
 <div class="modal-overlay" id="modal-retirada">
   <div class="modal">
     <div class="modal-title">Confirmar retirada</div>
     <div class="modal-sub" id="modal-desc">Marque quem retirou a encomenda na portaria.</div>
     <div class="field">
       <label>Retirado por</label>
-      <input id="modal-quem" type="text" placeholder="Nome de quem pegou na portaria..." autocomplete="off"/>
+      <input id="modal-quem" type="text" placeholder="Nome de quem pegou na portaria..."/>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarRetirada()">✓ Confirmar</button>
+      <button class="btn btn-primary" id="btn-confirmar" onclick="confirmarRetirada()">✓ Confirmar retirada</button>
     </div>
   </div>
 </div>
 
 <div class="success-toast" id="toast">
-  ✓ <span id="toast-msg">Encomenda registrada e notificação enviada!</span>
+  ✓ <span id="toast-msg">Operação realizada!</span>
 </div>
 
 <script>
+// ─── CONFIGURAÇÃO ────────────────────────────────────────────────────────────
+// Cole aqui ou use o modal de configuração (ícone de engrenagem no banner)
+let SUPABASE_URL    = localStorage.getItem('pf_url')     || '';
+let SUPABASE_KEY    = localStorage.getItem('pf_key')     || '';
+let N8N_WEBHOOK_URL = localStorage.getItem('pf_webhook') || '';
+
+// ─── MORADORES (mock — em produção viria do banco) ────────────────────────────
 const moradores = [
-  { nome: 'Maria Silva',      apto: '42',  wpp: '(21) 99999-1111', iniciais: 'MS' },
-  { nome: 'Carlos Mota',      apto: '87',  wpp: '(21) 99999-2222', iniciais: 'CM' },
-  { nome: 'Ana Beatriz',      apto: '13',  wpp: '(21) 99999-3333', iniciais: 'AB' },
-  { nome: 'Pedro Alves',      apto: '201', wpp: '(21) 99999-4444', iniciais: 'PA' },
-  { nome: 'Lucia Fernandes',  apto: '305', wpp: '(21) 99999-5555', iniciais: 'LF' },
+  { nome: 'Maria Silva',     apto: '42',  wpp: '5521999991111', iniciais: 'MS' },
+  { nome: 'Carlos Mota',     apto: '87',  wpp: '5521999992222', iniciais: 'CM' },
+  { nome: 'Ana Beatriz',     apto: '13',  wpp: '5521999993333', iniciais: 'AB' },
+  { nome: 'Pedro Alves',     apto: '201', wpp: '5521999994444', iniciais: 'PA' },
+  { nome: 'Lucia Fernandes', apto: '305', wpp: '5521999995555', iniciais: 'LF' },
 ];
 
-let encomendas = [
-  { morador: 'Maria Silva', apto: '42', entregador: 'João Correia',  tipo: 'Caixa pequena', transportadora: 'Mercado Livre', hora: '14:22', status: 'Retirado',   retiradoPor: 'Maria Silva',  horaRetirada: '16:10' },
-  { morador: 'Carlos Mota', apto: '87', entregador: 'Paulo Santos',  tipo: 'Envelope',      transportadora: 'Correios',      hora: '15:05', status: 'Notificado', retiradoPor: '',             horaRetirada: '' },
-  { morador: 'Ana Beatriz', apto: '13', entregador: 'Marcos Lima',   tipo: 'Sacola',        transportadora: 'iFood',         hora: '15:41', status: 'Pendente',   retiradoPor: '',             horaRetirada: '' },
-];
+// ─── ESTADO LOCAL (fallback quando Supabase não configurado) ──────────────────
+let encomendas = [];
+let modoDemo = true;
 
+// ─── INICIALIZAÇÃO ────────────────────────────────────────────────────────────
+function init() {
+  modoDemo = !SUPABASE_URL || !SUPABASE_KEY;
+  atualizarUI();
+  carregarEncomendas();
+  renderMoradores();
+}
+
+function atualizarUI() {
+  const banner = document.getElementById('config-banner');
+  const notifyBox = document.getElementById('notify-status');
+
+  if (!modoDemo) {
+    banner.style.display = 'none';
+    document.body.classList.remove('has-banner');
+    notifyBox.className = 'notify-box';
+    notifyBox.textContent = N8N_WEBHOOK_URL
+      ? '✓ WhatsApp será enviado automaticamente ao morador'
+      : '✓ Dados salvos no Supabase · WhatsApp não configurado';
+    document.getElementById('stat-wpp').textContent = N8N_WEBHOOK_URL ? 'ON' : 'OFF';
+    document.getElementById('stat-wpp-sub').textContent = N8N_WEBHOOK_URL ? 'webhook ativo' : 'sem webhook';
+  } else {
+    banner.style.display = 'flex';
+    document.body.classList.add('has-banner');
+    notifyBox.className = 'notify-box modo-demo';
+    notifyBox.textContent = '⚠ Modo demo — configure o Supabase para salvar de verdade';
+    document.getElementById('stat-wpp').textContent = '—';
+    document.getElementById('stat-wpp-sub').textContent = 'não configurado';
+  }
+}
+
+// ─── SUPABASE HELPERS ─────────────────────────────────────────────────────────
+async function sbFetch(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Supabase error: ${res.status}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// ─── CARREGAR ENCOMENDAS ──────────────────────────────────────────────────────
+async function carregarEncomendas() {
+  if (modoDemo) {
+    // Dados de demonstração
+    encomendas = [
+      { id: '1', morador: 'Maria Silva', apto: '42', entregador: 'João Correia', tipo: 'Caixa pequena', transportadora: 'Mercado Livre', hora: '14:22', status: 'Retirado', retirado_por: 'Maria Silva', hora_retirada: '16:10' },
+      { id: '2', morador: 'Carlos Mota', apto: '87', entregador: 'Paulo Santos', tipo: 'Envelope', transportadora: 'Correios', hora: '15:05', status: 'Notificado', retirado_por: '', hora_retirada: '' },
+      { id: '3', morador: 'Ana Beatriz', apto: '13', entregador: 'Marcos Lima', tipo: 'Sacola', transportadora: 'iFood', hora: '15:41', status: 'Pendente', retirado_por: '', hora_retirada: '' },
+    ];
+    atualizarStats();
+    renderDashboard();
+    return;
+  }
+
+  try {
+    const data = await sbFetch('encomendas?select=*&order=created_at.desc');
+    encomendas = data;
+    atualizarStats();
+    renderDashboard();
+  } catch(e) {
+    showToast('Erro ao conectar no Supabase. Verifique as credenciais.', true);
+    console.error(e);
+  }
+}
+
+// ─── REGISTRAR ENCOMENDA ──────────────────────────────────────────────────────
+async function registrar() {
+  const moradorVal    = document.getElementById('f-morador').value;
+  const entregador    = document.getElementById('f-entregador').value.trim();
+  const transportadora = document.getElementById('f-transportadora').value;
+  const tipo          = document.getElementById('f-tipo').value;
+
+  if (!moradorVal || !entregador || !transportadora || !tipo) {
+    showToast('Preencha todos os campos obrigatórios.', true);
+    return;
+  }
+
+  const partes = moradorVal.split('|');
+  const nome = partes[0];
+  const apto = partes[1];
+  const wpp  = partes[2] || '';
+  const agora = new Date();
+  const hora = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+
+  const novaEncomenda = { morador: nome, apto, entregador, tipo, transportadora, hora, status: 'Pendente', retirado_por: '', hora_retirada: '' };
+
+  const btn = document.getElementById('btn-registrar');
+  btn.disabled = true;
+  btn.textContent = 'Registrando...';
+
+  try {
+    if (!modoDemo) {
+      // Salva no Supabase
+      const [salvo] = await sbFetch('encomendas', {
+        method: 'POST',
+        body: JSON.stringify(novaEncomenda),
+      });
+      encomendas.unshift(salvo);
+
+      // Dispara webhook n8n (WhatsApp)
+      if (N8N_WEBHOOK_URL) {
+        fetch(N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            morador: nome, apto, tipo, transportadora, hora,
+            telefone: wpp,
+            mensagem: `Olá ${nome}! Uma encomenda chegou para você:\n📦 ${tipo} via ${transportadora}\n🕐 Horário: ${hora}\nPortaria do condomínio.`,
+          }),
+        }).catch(e => console.warn('Webhook falhou:', e));
+      }
+    } else {
+      // Modo demo: só adiciona no array local
+      novaEncomenda.id = Date.now().toString();
+      encomendas.unshift(novaEncomenda);
+    }
+
+    // Limpa formulário
+    document.getElementById('f-morador').value = '';
+    document.getElementById('f-entregador').value = '';
+    document.getElementById('f-transportadora').value = '';
+    document.getElementById('f-tipo').value = '';
+    document.getElementById('f-obs').value = '';
+
+    atualizarStats();
+
+    const msg = modoDemo
+      ? `Encomenda de ${nome} registrada! (demo — não salvo)`
+      : N8N_WEBHOOK_URL
+        ? `Encomenda de ${nome} registrada! WhatsApp enviado ✓`
+        : `Encomenda de ${nome} salva no banco ✓`;
+
+    showToast(msg);
+    navigate('encomendas');
+
+  } catch(e) {
+    showToast('Erro ao registrar. Tente novamente.', true);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Registrar e notificar →';
+  }
+}
+
+// ─── CONFIRMAR RETIRADA ───────────────────────────────────────────────────────
+async function confirmarRetirada() {
+  const quem = document.getElementById('modal-quem').value.trim();
+  if (!quem) { document.getElementById('modal-quem').focus(); return; }
+
+  const agora = new Date();
+  const hora = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled = true;
+
+  try {
+    const enc = encomendas[modalIdx];
+
+    if (!modoDemo) {
+      await sbFetch(`encomendas?id=eq.${enc.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'Retirado', retirado_por: quem, hora_retirada: hora }),
+        prefer: 'return=minimal',
+      });
+    }
+
+    encomendas[modalIdx].status = 'Retirado';
+    encomendas[modalIdx].retirado_por = quem;
+    encomendas[modalIdx].hora_retirada = hora;
+
+    fecharModal();
+    atualizarStats();
+    renderDashboard();
+    renderEncomendas();
+    showToast(`Retirada confirmada — ${quem} pegou a encomenda ✓`);
+
+  } catch(e) {
+    showToast('Erro ao confirmar retirada.', true);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ─── ESTATÍSTICAS ─────────────────────────────────────────────────────────────
+function atualizarStats() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const pendentes = encomendas.filter(e => e.status !== 'Retirado').length;
+  const deHoje = encomendas.filter(e => (e.created_at || '').startsWith(hoje)).length;
+
+  document.getElementById('stat-hoje').textContent = modoDemo ? encomendas.length : deHoje;
+  document.getElementById('stat-pendentes').textContent = pendentes;
+  document.getElementById('stat-total').textContent = encomendas.length;
+  document.getElementById('badge-count').textContent = encomendas.length;
+  document.getElementById('bnav-badge').textContent = encomendas.length;
+  document.getElementById('total-label').textContent = `${encomendas.length} registros`;
+}
+
+// ─── RENDER HELPERS ───────────────────────────────────────────────────────────
 function badgeHtml(status) {
-  if (status === 'Retirado') return `<span class="badge badge-retirado">Retirado</span>`;
+  if (status === 'Retirado')   return `<span class="badge badge-retirado">Retirado</span>`;
   if (status === 'Notificado') return `<span class="badge badge-green">Notificado</span>`;
   return `<span class="badge badge-amber">Pendente</span>`;
 }
 
 function renderDashboard() {
   const tbody = document.getElementById('tabela-dashboard');
-  tbody.innerHTML = encomendas.slice(-5).reverse().map((e) => {
+  const recentes = encomendas.slice(0, 5);
+  if (!recentes.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma encomenda ainda</td></tr>'; return; }
+  tbody.innerHTML = recentes.map((e, i) => {
     const idx = encomendas.indexOf(e);
-    const acaoBotao = e.status !== 'Retirado'
+    const acao = e.status !== 'Retirado'
       ? `<button class="btn-retirar" onclick="abrirModal(${idx})">↓ Registrar retirada</button>`
-      : `<span style="font-size:11px;color:var(--text3);">por ${e.retiradoPor}</span>`;
-    return `
-    <tr>
+      : `<span style="font-size:11px;color:var(--text3);">por ${e.retirado_por}</span>`;
+    return `<tr>
       <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
       <td data-label="Entregador">${e.entregador}</td>
       <td data-label="Tipo">${e.tipo}</td>
       <td data-label="Horário" class="mono">${e.hora}</td>
-      <td data-label="Status">${badgeHtml(e.status)} ${acaoBotao}</td>
+      <td data-label="Status" style="flex-wrap:wrap;gap:6px;">${badgeHtml(e.status)} ${acao}</td>
     </tr>`;
   }).join('');
-  const pendentes = encomendas.filter(e => e.status !== 'Retirado').length;
-  document.getElementById('stat-pendentes').textContent = pendentes;
 }
 
 function renderEncomendas() {
   const tbody = document.getElementById('tabela-encomendas');
-  tbody.innerHTML = encomendas.slice().reverse().map(e => {
-    const idx = encomendas.indexOf(e);
+  if (!encomendas.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma encomenda ainda</td></tr>'; return; }
+  tbody.innerHTML = encomendas.map((e, idx) => {
     const retiradaInfo = e.status === 'Retirado'
-      ? `<div class="primary" style="font-size:12.5px;">${e.retiradoPor}</div><div class="mono">${e.horaRetirada}</div>`
+      ? `<div class="primary" style="font-size:12.5px;">${e.retirado_por}</div><div class="mono">${e.hora_retirada}</div>`
       : `<button class="btn-retirar" onclick="abrirModal(${idx})">↓ Registrar retirada</button>`;
-    return `
-    <tr>
+    return `<tr>
       <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
       <td data-label="Entregador">${e.entregador}</td>
       <td data-label="Tipo">${e.tipo}</td>
@@ -994,7 +1112,6 @@ function renderEncomendas() {
       <td data-label="Retirada por">${retiradaInfo}</td>
     </tr>`;
   }).join('');
-  document.getElementById('total-label').textContent = `${encomendas.length} registros`;
 }
 
 function renderMoradores() {
@@ -1010,18 +1127,13 @@ function renderMoradores() {
   `).join('');
 }
 
+// ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 const pageTitles = {
-  dashboard:  { title: 'Dashboard',             sub: 'Visão geral do dia' },
-  registrar:  { title: 'Registrar encomenda',   sub: 'Nova entrega recebida' },
-  encomendas: { title: 'Encomendas',             sub: 'Histórico completo' },
-  moradores:  { title: 'Moradores',              sub: 'Cadastro do condomínio' },
+  dashboard:  { title: 'Dashboard',           sub: 'Visão geral do dia' },
+  registrar:  { title: 'Registrar encomenda', sub: 'Nova entrega recebida' },
+  encomendas: { title: 'Encomendas',          sub: 'Histórico completo' },
+  moradores:  { title: 'Moradores',           sub: 'Cadastro do condomínio' },
 };
-
-function toggleSidebar() {
-  document.querySelector('.sidebar').classList.toggle('open');
-  document.getElementById('sidebar-backdrop').classList.toggle('open');
-  document.body.style.overflow = document.querySelector('.sidebar').classList.contains('open') ? 'hidden' : '';
-}
 
 function navigate(page, el, fromBottomNav = false) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -1039,104 +1151,1312 @@ function navigate(page, el, fromBottomNav = false) {
   const p = pageTitles[page];
   document.getElementById('page-title').textContent = p.title;
   document.getElementById('page-sub').textContent = p.sub;
-  // Scroll to top on navigate
-  document.querySelector('.content').scrollTop = 0;
-  window.scrollTo(0, 0);
   if (page === 'dashboard') renderDashboard();
   if (page === 'encomendas') renderEncomendas();
   if (page === 'moradores') renderMoradores();
 }
 
-function registrar() {
-  const moradorVal = document.getElementById('f-morador').value;
-  const entregador = document.getElementById('f-entregador').value.trim();
-  const transportadora = document.getElementById('f-transportadora').value;
-  const tipo = document.getElementById('f-tipo').value;
-
-  if (!moradorVal || !entregador || !transportadora || !tipo) {
-    showToast('Preencha todos os campos obrigatórios.', true);
-    return;
-  }
-
-  const [nome, apto] = moradorVal.split('|');
-  const agora = new Date();
-  const hora = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
-
-  encomendas.push({ morador: nome, apto, entregador, tipo, transportadora, hora, status: 'Notificado', retiradoPor: '', horaRetirada: '' });
-
-  document.getElementById('f-morador').value = '';
-  document.getElementById('f-entregador').value = '';
-  document.getElementById('f-transportadora').value = '';
-  document.getElementById('f-tipo').value = '';
-  document.getElementById('f-obs').value = '';
-
-  document.getElementById('stat-hoje').textContent = encomendas.length;
-  document.getElementById('badge-count').textContent = encomendas.length;
-  document.getElementById('bnav-badge').textContent = encomendas.length;
-
-  showToast(`Encomenda de ${nome} registrada! WhatsApp enviado ✓`);
-  navigate('encomendas');
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
 }
 
-function showToast(msg, error = false) {
-  const t = document.getElementById('toast');
-  t.style.background = error ? 'var(--red)' : 'var(--accent)';
-  t.style.color = error ? '#fff' : '#0a1a0f';
-  document.getElementById('toast-msg').textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3500);
-}
-
+// ─── MODAL RETIRADA ───────────────────────────────────────────────────────────
 let modalIdx = null;
 
 function abrirModal(idx) {
   modalIdx = idx;
   const e = encomendas[idx];
-  document.getElementById('modal-desc').textContent = `${e.morador} (Apto ${e.apto}) — ${e.tipo} via ${e.transportadora}`;
+  document.getElementById('modal-desc').textContent = `Encomenda de ${e.morador} (Apto ${e.apto}) — ${e.tipo} via ${e.transportadora}`;
   document.getElementById('modal-quem').value = '';
   document.getElementById('modal-retirada').classList.add('open');
-  document.body.style.overflow = 'hidden';
   setTimeout(() => document.getElementById('modal-quem').focus(), 100);
 }
 
 function fecharModal() {
   document.getElementById('modal-retirada').classList.remove('open');
-  document.body.style.overflow = '';
   modalIdx = null;
-}
-
-function confirmarRetirada() {
-  const quem = document.getElementById('modal-quem').value.trim();
-  if (!quem) {
-    document.getElementById('modal-quem').focus();
-    return;
-  }
-  const agora = new Date();
-  const hora = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
-  encomendas[modalIdx].status = 'Retirado';
-  encomendas[modalIdx].retiradoPor = quem;
-  encomendas[modalIdx].horaRetirada = hora;
-  fecharModal();
-  renderDashboard();
-  renderEncomendas();
-  showToast(`Retirada confirmada — ${quem} pegou a encomenda ✓`);
 }
 
 document.addEventListener('click', e => {
   if (e.target.id === 'modal-retirada') fecharModal();
 });
 
-// Fechar sidebar com swipe left
-let touchStartX = 0;
-document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
-document.addEventListener('touchend', e => {
-  const dx = e.changedTouches[0].clientX - touchStartX;
-  const sidebar = document.querySelector('.sidebar');
-  if (sidebar.classList.contains('open') && dx < -60) toggleSidebar();
-}, { passive: true });
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg, error = false) {
+  const t = document.getElementById('toast');
+  t.className = 'success-toast' + (error ? ' error' : '');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
 
-renderDashboard();
-renderMoradores();
+// ─── MODAL CONFIGURAÇÃO ───────────────────────────────────────────────────────
+function abrirConfig() {
+  document.getElementById('cfg-url').value     = SUPABASE_URL;
+  document.getElementById('cfg-key').value     = SUPABASE_KEY;
+  document.getElementById('cfg-webhook').value = N8N_WEBHOOK_URL;
+  document.getElementById('config-modal').classList.add('open');
+}
+
+function fecharConfig() {
+  document.getElementById('config-modal').classList.remove('open');
+}
+
+function salvarConfig() {
+  SUPABASE_URL    = document.getElementById('cfg-url').value.trim();
+  SUPABASE_KEY    = document.getElementById('cfg-key').value.trim();
+  N8N_WEBHOOK_URL = document.getElementById('cfg-webhook').value.trim();
+
+  localStorage.setItem('pf_url',     SUPABASE_URL);
+  localStorage.setItem('pf_key',     SUPABASE_KEY);
+  localStorage.setItem('pf_webhook', N8N_WEBHOOK_URL);
+
+  fecharConfig();
+  init();
+  showToast('Configuração salva! Carregando dados...');
+}
+
+// ─── START ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PortaFácil — Sistema de Encomendas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+
+<!-- =====================================================================
+  PORTAFÁCIL — VERSÃO INTEGRADA (custo zero para testes)
+  
+  PASSO 1 — SUPABASE (banco de dados grátis)
+    1. Crie conta em https://supabase.com
+    2. Crie um novo projeto
+    3. Vá em SQL Editor e rode o SQL abaixo para criar as tabelas:
+    
+       create table encomendas (
+         id uuid default gen_random_uuid() primary key,
+         morador text not null,
+         apto text not null,
+         entregador text not null,
+         tipo text not null,
+         transportadora text not null,
+         hora text not null,
+         status text default 'Pendente',
+         retirado_por text default '',
+         hora_retirada text default '',
+         created_at timestamp default now()
+       );
+       alter table encomendas enable row level security;
+       create policy "acesso livre teste" on encomendas for all using (true);
+
+    4. Vá em Project Settings > API
+    5. Copie a "Project URL" e a "anon public key"
+    6. Cole nas variáveis SUPABASE_URL e SUPABASE_KEY abaixo
+
+  PASSO 2 — N8N CLOUD (automação grátis)
+    1. Crie conta em https://n8n.io (free tier = 5 workflows)
+    2. Crie um novo workflow
+    3. Adicione nó "Webhook" — copie a URL gerada
+    4. Adicione nó "HTTP Request" configurado para a API do WhatsApp
+       (veja instruções no README abaixo)
+    5. Cole a URL do webhook em N8N_WEBHOOK_URL abaixo
+    6. Ative o workflow no n8n
+
+  PASSO 3 — WHATSAPP META (grátis, 1000 msgs/mês)
+    1. Acesse https://developers.facebook.com
+    2. Crie um app > Business > WhatsApp
+    3. Em "WhatsApp > Getting Started" você recebe um número de teste
+       e um token temporário
+    4. Configure no n8n: POST https://graph.facebook.com/v18.0/SEU_PHONE_ID/messages
+       Header: Authorization: Bearer SEU_TOKEN
+       Body: { "messaging_product": "whatsapp", "to": "55NUMERO", 
+               "type": "text", "text": { "body": "{{$json.mensagem}}" } }
+    
+  Para testar sem WhatsApp real:
+    Deixe N8N_WEBHOOK_URL vazio — o app funciona normalmente,
+    só não envia mensagem de verdade.
+====================================================================== -->
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #171b26;
+    --surface2: #1e2333;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #555b6e;
+    --accent: #4ade80;
+    --accent-dim: rgba(74,222,128,0.12);
+    --accent-glow: rgba(74,222,128,0.25);
+    --amber: #fbbf24;
+    --amber-dim: rgba(251,191,36,0.12);
+    --blue: #60a5fa;
+    --blue-dim: rgba(96,165,250,0.12);
+    --red: #f87171;
+    --red-dim: rgba(248,113,113,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+  }
+
+  /* Config banner */
+  .config-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+    background: #1a1200;
+    border-bottom: 1px solid rgba(251,191,36,0.3);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 12.5px; color: var(--amber);
+  }
+  .config-banner a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+  .config-banner button {
+    margin-left: auto; background: transparent; border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 6px; padding: 4px 10px; color: var(--amber); font-size: 11px;
+    cursor: pointer; font-family: var(--font);
+  }
+  .config-banner button:hover { background: rgba(251,191,36,0.1); }
+
+  /* Config modal */
+  .config-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8); z-index: 600;
+    align-items: center; justify-content: center;
+  }
+  .config-modal-overlay.open { display: flex; }
+  .config-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 28px; width: 500px; max-width: 95vw;
+  }
+  .config-modal h2 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .config-modal p { font-size: 12.5px; color: var(--text3); margin-bottom: 20px; line-height: 1.6; }
+  .config-modal .field { margin-bottom: 14px; }
+  .config-modal label { font-size: 12px; color: var(--text2); font-weight: 500; display: block; margin-bottom: 6px; }
+  .config-modal input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 13px; color: var(--text); font-family: var(--mono); outline: none;
+  }
+  .config-modal input:focus { border-color: var(--accent); }
+  .config-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .config-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .config-actions .btn { flex: 1; justify-content: center; }
+
+  /* Layout com banner */
+  body.has-banner .sidebar { top: 44px; }
+  body.has-banner .main { padding-top: 44px; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
+    50% { opacity: 0.6; box-shadow: 0 0 16px var(--accent-glow); }
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13.5px;
+    color: var(--text2);
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    user-select: none;
+  }
+
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+
+  .nav-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: rgba(74,222,128,0.15);
+  }
+
+  .nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #0a1a0f;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-family: var(--mono);
+  }
+
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .user-card { display: flex; align-items: center; gap: 10px; }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4ade80, #22d3ee);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #0f1117;
+    flex-shrink: 0;
+  }
+
+  .user-info { flex: 1; min-width: 0; }
+  .user-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role { font-size: 11px; color: var(--text3); }
+
+  /* Main content */
+  .main {
+    margin-left: 220px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 50;
+  }
+
+  .page-title { font-size: 16px; font-weight: 500; color: var(--text); letter-spacing: -0.2px; }
+  .page-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
+
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.15s;
+    font-family: var(--font);
+  }
+
+  .btn-primary { background: var(--accent); color: #0a1a0f; }
+  .btn-primary:hover { background: #22c55e; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border2);
+  }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+
+  .content { padding: 28px 32px; flex: 1; }
+
+  .section { display: none; }
+  .section.active { display: block; animation: fadeIn 0.2s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .stat-value { font-size: 26px; font-weight: 600; color: var(--text); line-height: 1; font-family: var(--mono); letter-spacing: -1px; }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 6px; }
+
+  .stat-card.green .stat-value { color: var(--accent); }
+  .stat-card.amber .stat-value { color: var(--amber); }
+  .stat-card.blue .stat-value { color: var(--blue); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .card-title { font-size: 13.5px; font-weight: 500; color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    padding: 12px 20px;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 14px 20px;
+    font-size: 13.5px;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  td .primary { color: var(--text); font-weight: 500; }
+  td .mono { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 500;
+  }
+
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+  .badge-green { background: var(--accent-dim); color: var(--accent); }
+  .badge-green::before { background: var(--accent); }
+  .badge-amber { background: var(--amber-dim); color: var(--amber); }
+  .badge-amber::before { background: var(--amber); }
+  .badge-retirado { background: rgba(139,144,160,0.12); color: var(--text2); }
+  .badge-retirado::before { background: var(--text2); }
+
+  .btn-retirar {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2);
+    font-family: var(--font);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-retirar:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(74,222,128,0.3); }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 28px;
+    width: 400px;
+    max-width: 90vw;
+    animation: fadeIn 0.2s ease;
+  }
+  .modal-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .modal-sub { font-size: 12.5px; color: var(--text3); margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions .btn { flex: 1; justify-content: center; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-full { grid-column: 1 / -1; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; color: var(--text2); font-weight: 500; }
+
+  .field input, .field select, .field textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: var(--font);
+    transition: border-color 0.15s;
+    outline: none;
+  }
+
+  .field input::placeholder, .field textarea::placeholder { color: var(--text3); }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  .field select option { background: var(--surface2); }
+  .field textarea { resize: vertical; min-height: 80px; }
+
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-width: 640px;
+  }
+
+  .form-title { font-size: 14px; font-weight: 500; margin-bottom: 20px; color: var(--text); }
+
+  .notify-box {
+    background: var(--accent-dim);
+    border: 1px solid rgba(74,222,128,0.2);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: var(--accent);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .notify-box.modo-demo {
+    background: var(--amber-dim);
+    border-color: rgba(251,191,36,0.2);
+    color: var(--amber);
+  }
+
+  .success-toast {
+    position: fixed; bottom: 28px; right: 28px;
+    background: var(--accent);
+    color: #0a1a0f;
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .success-toast.error { background: var(--red); }
+  .success-toast.show { transform: translateY(0); opacity: 1; }
+
+  .loading-row td { text-align: center; color: var(--text3); padding: 32px; }
+  .empty { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 13px; }
+
+  .morador-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+
+  .morador-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    display: flex; align-items: center; gap: 14px;
+    transition: border-color 0.15s;
+  }
+  .morador-card:hover { border-color: var(--border2); }
+
+  .morador-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600;
+    color: var(--text2);
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .morador-info { flex: 1; min-width: 0; }
+  .morador-name { font-size: 13.5px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .morador-apto { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+  .morador-wpp { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .section-intro { font-size: 13px; color: var(--text3); margin-bottom: 20px; line-height: 1.6; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 999px; }
+
+  @media (max-width: 768px) {
+    .sidebar {
+      width: 260px;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      z-index: 300;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 299; }
+    .sidebar-backdrop.open { display: block; }
+    .main { margin-left: 0; padding-bottom: 70px; }
+    .topbar { padding: 14px 16px; }
+    .menu-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); cursor: pointer;
+      font-size: 16px; color: var(--text2); flex-shrink: 0;
+      margin-right: 10px;
+    }
+    .content { padding: 16px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stat-card { padding: 14px 16px; }
+    .stat-value { font-size: 22px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-card { padding: 16px; max-width: 100%; }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tr {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin: 0 0 10px 0;
+      padding: 14px;
+      position: relative;
+    }
+    tr:hover td { background: transparent; }
+    td { padding: 3px 0; border: none; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    td::before { content: attr(data-label); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; min-width: 80px; flex-shrink: 0; }
+    td:first-child { margin-bottom: 6px; }
+    td:first-child::before { display: none; }
+    td:first-child .primary { font-size: 14px; }
+    td[data-label="Status"], td[data-label="Retirada por"] { flex-wrap: wrap; }
+    .bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); z-index: 200; height: 64px; }
+    .bottom-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: var(--text3); font-size: 10px; transition: color 0.15s; user-select: none; position: relative; }
+    .bottom-nav-item.active { color: var(--accent); }
+    .bottom-nav-item .bnav-icon { font-size: 18px; }
+    .bottom-nav-item .bnav-badge { position: absolute; top: 8px; right: calc(50% - 16px); background: var(--accent); color: #0a1a0f; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 999px; font-family: var(--mono); }
+    .success-toast { bottom: 76px; right: 16px; left: 16px; }
+    .modal { width: 92vw; padding: 20px; }
+    .config-banner { font-size: 11px; }
+  }
+
+  @media (min-width: 769px) {
+    .bottom-nav { display: none; }
+    .menu-btn { display: none; }
+    .sidebar-backdrop { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Banner de configuração (some quando configurado) -->
+<div class="config-banner" id="config-banner">
+  ⚠ Modo demonstração — dados não são salvos.
+  <a onclick="abrirConfig()">Configurar Supabase + n8n para ativar persistência</a>
+  <button onclick="abrirConfig()">Configurar</button>
+</div>
+
+<!-- Modal de configuração -->
+<div class="config-modal-overlay" id="config-modal">
+  <div class="config-modal">
+    <h2>Configurar integrações</h2>
+    <p>Preencha abaixo para ativar banco de dados real e envio de WhatsApp. Tudo gratuito para testes.</p>
+
+    <div class="field">
+      <label>Supabase URL</label>
+      <input id="cfg-url" type="text" placeholder="https://xxxxxxxxxxx.supabase.co"/>
+      <div class="config-hint">Project Settings > API > Project URL</div>
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <label>Supabase Anon Key</label>
+      <input id="cfg-key" type="text" placeholder="eyJhbGciOiJIUzI1NiIsInR5c..."/>
+      <div class="config-hint">Project Settings > API > anon public</div>
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <label>n8n Webhook URL <span style="color:var(--text3);font-weight:400;">(opcional — só para WhatsApp)</span></label>
+      <input id="cfg-webhook" type="text" placeholder="https://sua-instancia.n8n.cloud/webhook/encomenda"/>
+      <div class="config-hint">Deixe vazio para testar sem WhatsApp real</div>
+    </div>
+
+    <div class="config-actions">
+      <button class="btn btn-ghost" onclick="fecharConfig()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConfig()">Salvar e conectar</button>
+    </div>
+  </div>
+</div>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-badge">
+      <span class="logo-dot"></span>
+      PortaFácil
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:4px;">Cond. Vista Verde</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="navigate('dashboard', this)">
+      <span class="nav-icon">▦</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="navigate('registrar', this)">
+      <span class="nav-icon">＋</span> Registrar encomenda
+    </div>
+    <div class="nav-item" onclick="navigate('encomendas', this)">
+      <span class="nav-icon">◫</span> Encomendas
+      <span class="nav-badge" id="badge-count">0</span>
+    </div>
+    <div class="nav-item" onclick="navigate('moradores', this)">
+      <span class="nav-icon">◎</span> Moradores
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar">JR</div>
+      <div class="user-info">
+        <div class="user-name">José Ribeiro</div>
+        <div class="user-role">Porteiro · Turno A</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:4px;">
+      <div class="menu-btn" onclick="toggleSidebar()">☰</div>
+      <div>
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="page-sub" id="page-sub">Visão geral do dia</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" onclick="navigate('registrar', document.querySelector('[onclick*=&quot;registrar&quot;]'))">＋ Nova encomenda</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="section-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card green">
+          <div class="stat-label">Hoje</div>
+          <div class="stat-value" id="stat-hoje">—</div>
+          <div class="stat-sub">encomendas registradas</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Pendentes</div>
+          <div class="stat-value" id="stat-pendentes">—</div>
+          <div class="stat-sub">aguardando retirada</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Total</div>
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-sub">no histórico</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">WhatsApp</div>
+          <div class="stat-value" id="stat-wpp">—</div>
+          <div class="stat-sub" id="stat-wpp-sub">configurar</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Últimas encomendas</span>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;" onclick="navigate('encomendas', document.querySelector('[onclick*=&quot;encomendas&quot;]'))">Ver todas →</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Morador</th>
+              <th>Entregador</th>
+              <th>Tipo</th>
+              <th>Horário</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-dashboard">
+            <tr class="loading-row"><td colspan="5">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REGISTRAR -->
+    <div class="section" id="section-registrar">
+      <div class="form-card">
+        <div class="form-title">Nova entrega</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Morador / Apartamento</label>
+            <select id="f-morador">
+              <option value="">Selecione o morador...</option>
+              <option value="Meu Número (Teste)|01|5521986390877">🧪 Meu Número (Teste) — Apto 01</option>
+              <option value="Maria Silva|42|5521999991111">Maria Silva — Apto 42</option>
+              <option value="Carlos Mota|87|5521999992222">Carlos Mota — Apto 87</option>
+              <option value="Ana Beatriz|13|5521999993333">Ana Beatriz — Apto 13</option>
+              <option value="Pedro Alves|201|5521999994444">Pedro Alves — Apto 201</option>
+              <option value="Lucia Fernandes|305|5521999995555">Lucia Fernandes — Apto 305</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Nome do entregador</label>
+            <input id="f-entregador" type="text" placeholder="Ex: João Correia"/>
+          </div>
+          <div class="field">
+            <label>Transportadora / Serviço</label>
+            <select id="f-transportadora">
+              <option value="">Selecione...</option>
+              <option>Mercado Livre</option>
+              <option>Amazon</option>
+              <option>Correios</option>
+              <option>iFood</option>
+              <option>Rappi</option>
+              <option>Shopee</option>
+              <option>Outro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Tipo de volume</label>
+            <select id="f-tipo">
+              <option value="">Selecione...</option>
+              <option>Caixa pequena</option>
+              <option>Caixa grande</option>
+              <option>Envelope</option>
+              <option>Sacola</option>
+              <option>Produto frágil</option>
+            </select>
+          </div>
+          <div class="field form-full">
+            <label>Observação (opcional)</label>
+            <textarea id="f-obs" placeholder="Ex: produto frágil, necessita refrigeração..."></textarea>
+          </div>
+        </div>
+
+        <div class="notify-box modo-demo" id="notify-status">
+          ⚠ Modo demo — configure o Supabase para salvar de verdade
+        </div>
+
+        <button class="btn btn-primary" id="btn-registrar" onclick="registrar()" style="width:100%;justify-content:center;padding:11px;">
+          Registrar e notificar →
+        </button>
+      </div>
+    </div>
+
+    <!-- ENCOMENDAS -->
+    <div class="section" id="section-encomendas">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Todas as encomendas</span>
+          <span style="font-size:12px;color:var(--text3);" id="total-label">— registros</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Morador</th>
+              <th>Entregador</th>
+              <th>Tipo</th>
+              <th>Transportadora</th>
+              <th>Horário</th>
+              <th>Status</th>
+              <th>Retirada por</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-encomendas">
+            <tr class="loading-row"><td colspan="7">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MORADORES -->
+    <div class="section" id="section-moradores">
+      <p class="section-intro">Cadastro de moradores do condomínio. Cada morador precisa de um número WhatsApp válido para receber notificações.</p>
+      <div class="morador-grid" id="grid-moradores"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+<nav class="bottom-nav">
+  <div class="bottom-nav-item active" id="bnav-dashboard" onclick="navigate('dashboard', this, true)">
+    <span class="bnav-icon">▦</span><span>Dashboard</span>
+  </div>
+  <div class="bottom-nav-item" id="bnav-registrar" onclick="navigate('registrar', this, true)">
+    <span class="bnav-icon">＋</span><span>Registrar</span>
+  </div>
+  <div class="bottom-nav-item" id="bnav-encomendas" onclick="navigate('encomendas', this, true)">
+    <span class="bnav-icon">◫</span><span>Encomendas</span>
+    <span class="bnav-badge" id="bnav-badge">0</span>
+  </div>
+  <div class="bottom-nav-item" id="bnav-moradores" onclick="navigate('moradores', this, true)">
+    <span class="bnav-icon">◎</span><span>Moradores</span>
+  </div>
+</nav>
+
+<div class="modal-overlay" id="modal-retirada">
+  <div class="modal">
+    <div class="modal-title">Confirmar retirada</div>
+    <div class="modal-sub" id="modal-desc">Marque quem retirou a encomenda na portaria.</div>
+    <div class="field">
+      <label>Retirado por</label>
+      <input id="modal-quem" type="text" placeholder="Nome de quem pegou na portaria..."/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar" onclick="confirmarRetirada()">✓ Confirmar retirada</button>
+    </div>
+  </div>
+</div>
+
+<div class="success-toast" id="toast">
+  ✓ <span id="toast-msg">Operação realizada!</span>
+</div>
+
+<script>
+// ─── CONFIGURAÇÃO ────────────────────────────────────────────────────────────
+// Cole aqui ou use o modal de configuração (ícone de engrenagem no banner)
+let SUPABASE_URL    = localStorage.getItem('pf_url')     || '';
+let SUPABASE_KEY    = localStorage.getItem('pf_key')     || '';
+let N8N_WEBHOOK_URL = localStorage.getItem('pf_webhook') || 'https://nicolas007.app.n8n.cloud/webhook/portafacil-notificacao';
+
+// ─── MORADORES (mock — em produção viria do banco) ────────────────────────────
+const moradores = [
+  { nome: 'Meu Número (Teste)', apto: '01',  wpp: '5521986390877', iniciais: 'EU' },
+  { nome: 'Maria Silva',     apto: '42',  wpp: '5521999991111', iniciais: 'MS' },
+  { nome: 'Carlos Mota',     apto: '87',  wpp: '5521999992222', iniciais: 'CM' },
+  { nome: 'Ana Beatriz',     apto: '13',  wpp: '5521999993333', iniciais: 'AB' },
+  { nome: 'Pedro Alves',     apto: '201', wpp: '5521999994444', iniciais: 'PA' },
+  { nome: 'Lucia Fernandes', apto: '305', wpp: '5521999995555', iniciais: 'LF' },
+];
+
+// ─── ESTADO LOCAL (fallback quando Supabase não configurado) ──────────────────
+let encomendas = [];
+let modoDemo = true;
+
+// ─── INICIALIZAÇÃO ────────────────────────────────────────────────────────────
+function init() {
+  modoDemo = !SUPABASE_URL || !SUPABASE_KEY;
+  atualizarUI();
+  carregarEncomendas();
+  renderMoradores();
+}
+
+function atualizarUI() {
+  const banner = document.getElementById('config-banner');
+  const notifyBox = document.getElementById('notify-status');
+
+  if (!modoDemo) {
+    banner.style.display = 'none';
+    document.body.classList.remove('has-banner');
+    notifyBox.className = 'notify-box';
+    notifyBox.textContent = N8N_WEBHOOK_URL
+      ? '✓ WhatsApp será enviado automaticamente ao morador'
+      : '✓ Dados salvos no Supabase · WhatsApp não configurado';
+    document.getElementById('stat-wpp').textContent = N8N_WEBHOOK_URL ? 'ON' : 'OFF';
+    document.getElementById('stat-wpp-sub').textContent = N8N_WEBHOOK_URL ? 'webhook ativo' : 'sem webhook';
+  } else {
+    banner.style.display = 'flex';
+    document.body.classList.add('has-banner');
+    notifyBox.className = 'notify-box modo-demo';
+    notifyBox.textContent = '⚠ Modo demo — configure o Supabase para salvar de verdade';
+    document.getElementById('stat-wpp').textContent = '—';
+    document.getElementById('stat-wpp-sub').textContent = 'não configurado';
+  }
+}
+
+// ─── SUPABASE HELPERS ─────────────────────────────────────────────────────────
+async function sbFetch(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Supabase error: ${res.status}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// ─── CARREGAR ENCOMENDAS ──────────────────────────────────────────────────────
+async function carregarEncomendas() {
+  if (modoDemo) {
+    // Dados de demonstração
+    encomendas = [
+      { id: '1', morador: 'Maria Silva', apto: '42', entregador: 'João Correia', tipo: 'Caixa pequena', transportadora: 'Mercado Livre', hora: '14:22', status: 'Retirado', retirado_por: 'Maria Silva', hora_retirada: '16:10' },
+      { id: '2', morador: 'Carlos Mota', apto: '87', entregador: 'Paulo Santos', tipo: 'Envelope', transportadora: 'Correios', hora: '15:05', status: 'Notificado', retirado_por: '', hora_retirada: '' },
+      { id: '3', morador: 'Ana Beatriz', apto: '13', entregador: 'Marcos Lima', tipo: 'Sacola', transportadora: 'iFood', hora: '15:41', status: 'Pendente', retirado_por: '', hora_retirada: '' },
+    ];
+    atualizarStats();
+    renderDashboard();
+    return;
+  }
+
+  try {
+    const data = await sbFetch('encomendas?select=*&order=created_at.desc');
+    encomendas = data;
+    atualizarStats();
+    renderDashboard();
+  } catch(e) {
+    showToast('Erro ao conectar no Supabase. Verifique as credenciais.', true);
+    console.error(e);
+  }
+}
+
+// ─── REGISTRAR ENCOMENDA ──────────────────────────────────────────────────────
+async function registrar() {
+  const moradorVal    = document.getElementById('f-morador').value;
+  const entregador    = document.getElementById('f-entregador').value.trim();
+  const transportadora = document.getElementById('f-transportadora').value;
+  const tipo          = document.getElementById('f-tipo').value;
+
+  if (!moradorVal || !entregador || !transportadora || !tipo) {
+    showToast('Preencha todos os campos obrigatórios.', true);
+    return;
+  }
+
+  const partes = moradorVal.split('|');
+  const nome = partes[0];
+  const apto = partes[1];
+  const wpp  = partes[2] || '';
+  const agora = new Date();
+  const hora = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+
+  const novaEncomenda = { morador: nome, apto, entregador, tipo, transportadora, hora, status: 'Pendente', retirado_por: '', hora_retirada: '' };
+
+  const btn = document.getElementById('btn-registrar');
+  btn.disabled = true;
+  btn.textContent = 'Registrando...';
+
+  try {
+    if (!modoDemo) {
+      // Salva no Supabase
+      const [salvo] = await sbFetch('encomendas', {
+        method: 'POST',
+        body: JSON.stringify(novaEncomenda),
+      });
+      encomendas.unshift(salvo);
+
+      // Dispara webhook n8n (WhatsApp)
+      if (N8N_WEBHOOK_URL) {
+        fetch(N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            morador: nome, apto, tipo, transportadora, hora,
+            telefone: wpp,
+            mensagem: `Olá ${nome}! Uma encomenda chegou para você:\n📦 ${tipo} via ${transportadora}\n🕐 Horário: ${hora}\nPortaria do condomínio.`,
+          }),
+        }).catch(e => console.warn('Webhook falhou:', e));
+      }
+    } else {
+      // Modo demo: só adiciona no array local
+      novaEncomenda.id = Date.now().toString();
+      encomendas.unshift(novaEncomenda);
+
+      // Mesmo no demo, dispara o webhook se configurado
+      if (N8N_WEBHOOK_URL && wpp) {
+        fetch(N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            morador: nome, apto, tipo, transportadora, hora,
+            telefone: wpp,
+            mensagem: `Olá ${nome}! Uma encomenda chegou para você:\n📦 ${tipo} via ${transportadora}\n🕐 Horário: ${hora}\nPortaria do condomínio.`,
+          }),
+        }).catch(e => console.warn('Webhook falhou:', e));
+      }
+    }
+
+    // Limpa formulário
+    document.getElementById('f-morador').value = '';
+    document.getElementById('f-entregador').value = '';
+    document.getElementById('f-transportadora').value = '';
+    document.getElementById('f-tipo').value = '';
+    document.getElementById('f-obs').value = '';
+
+    atualizarStats();
+
+    const msg = modoDemo
+      ? `Encomenda de ${nome} registrada! (demo — não salvo)`
+      : N8N_WEBHOOK_URL
+        ? `Encomenda de ${nome} registrada! WhatsApp enviado ✓`
+        : `Encomenda de ${nome} salva no banco ✓`;
+
+    showToast(msg);
+    navigate('encomendas');
+
+  } catch(e) {
+    showToast('Erro ao registrar. Tente novamente.', true);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Registrar e notificar →';
+  }
+}
+
+// ─── CONFIRMAR RETIRADA ───────────────────────────────────────────────────────
+async function confirmarRetirada() {
+  const quem = document.getElementById('modal-quem').value.trim();
+  if (!quem) { document.getElementById('modal-quem').focus(); return; }
+
+  const agora = new Date();
+  const hora = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled = true;
+
+  try {
+    const enc = encomendas[modalIdx];
+
+    if (!modoDemo) {
+      await sbFetch(`encomendas?id=eq.${enc.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'Retirado', retirado_por: quem, hora_retirada: hora }),
+        prefer: 'return=minimal',
+      });
+    }
+
+    encomendas[modalIdx].status = 'Retirado';
+    encomendas[modalIdx].retirado_por = quem;
+    encomendas[modalIdx].hora_retirada = hora;
+
+    fecharModal();
+    atualizarStats();
+    renderDashboard();
+    renderEncomendas();
+    showToast(`Retirada confirmada — ${quem} pegou a encomenda ✓`);
+
+  } catch(e) {
+    showToast('Erro ao confirmar retirada.', true);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ─── ESTATÍSTICAS ─────────────────────────────────────────────────────────────
+function atualizarStats() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const pendentes = encomendas.filter(e => e.status !== 'Retirado').length;
+  const deHoje = encomendas.filter(e => (e.created_at || '').startsWith(hoje)).length;
+
+  document.getElementById('stat-hoje').textContent = modoDemo ? encomendas.length : deHoje;
+  document.getElementById('stat-pendentes').textContent = pendentes;
+  document.getElementById('stat-total').textContent = encomendas.length;
+  document.getElementById('badge-count').textContent = encomendas.length;
+  document.getElementById('bnav-badge').textContent = encomendas.length;
+  document.getElementById('total-label').textContent = `${encomendas.length} registros`;
+}
+
+// ─── RENDER HELPERS ───────────────────────────────────────────────────────────
+function badgeHtml(status) {
+  if (status === 'Retirado')   return `<span class="badge badge-retirado">Retirado</span>`;
+  if (status === 'Notificado') return `<span class="badge badge-green">Notificado</span>`;
+  return `<span class="badge badge-amber">Pendente</span>`;
+}
+
+function renderDashboard() {
+  const tbody = document.getElementById('tabela-dashboard');
+  const recentes = encomendas.slice(0, 5);
+  if (!recentes.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma encomenda ainda</td></tr>'; return; }
+  tbody.innerHTML = recentes.map((e, i) => {
+    const idx = encomendas.indexOf(e);
+    const acao = e.status !== 'Retirado'
+      ? `<button class="btn-retirar" onclick="abrirModal(${idx})">↓ Registrar retirada</button>`
+      : `<span style="font-size:11px;color:var(--text3);">por ${e.retirado_por}</span>`;
+    return `<tr>
+      <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
+      <td data-label="Entregador">${e.entregador}</td>
+      <td data-label="Tipo">${e.tipo}</td>
+      <td data-label="Horário" class="mono">${e.hora}</td>
+      <td data-label="Status" style="flex-wrap:wrap;gap:6px;">${badgeHtml(e.status)} ${acao}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderEncomendas() {
+  const tbody = document.getElementById('tabela-encomendas');
+  if (!encomendas.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma encomenda ainda</td></tr>'; return; }
+  tbody.innerHTML = encomendas.map((e, idx) => {
+    const retiradaInfo = e.status === 'Retirado'
+      ? `<div class="primary" style="font-size:12.5px;">${e.retirado_por}</div><div class="mono">${e.hora_retirada}</div>`
+      : `<button class="btn-retirar" onclick="abrirModal(${idx})">↓ Registrar retirada</button>`;
+    return `<tr>
+      <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
+      <td data-label="Entregador">${e.entregador}</td>
+      <td data-label="Tipo">${e.tipo}</td>
+      <td data-label="Transportadora">${e.transportadora}</td>
+      <td data-label="Horário" class="mono">${e.hora}</td>
+      <td data-label="Status">${badgeHtml(e.status)}</td>
+      <td data-label="Retirada por">${retiradaInfo}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderMoradores() {
+  document.getElementById('grid-moradores').innerHTML = moradores.map(m => `
+    <div class="morador-card">
+      <div class="morador-avatar">${m.iniciais}</div>
+      <div class="morador-info">
+        <div class="morador-name">${m.nome}</div>
+        <div class="morador-apto">Apto ${m.apto}</div>
+        <div class="morador-wpp">${m.wpp}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
+const pageTitles = {
+  dashboard:  { title: 'Dashboard',           sub: 'Visão geral do dia' },
+  registrar:  { title: 'Registrar encomenda', sub: 'Nova entrega recebida' },
+  encomendas: { title: 'Encomendas',          sub: 'Histórico completo' },
+  moradores:  { title: 'Moradores',           sub: 'Cadastro do condomínio' },
+};
+
+function navigate(page, el, fromBottomNav = false) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + page).classList.add('active');
+  const sidebarItem = document.querySelector(`.nav-item[onclick*="${page}"]`);
+  if (sidebarItem) sidebarItem.classList.add('active');
+  const bnavItem = document.getElementById('bnav-' + page);
+  if (bnavItem) bnavItem.classList.add('active');
+  if (!fromBottomNav && el) {
+    el.classList.add('active');
+    if (window.innerWidth <= 768) toggleSidebar();
+  }
+  const p = pageTitles[page];
+  document.getElementById('page-title').textContent = p.title;
+  document.getElementById('page-sub').textContent = p.sub;
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'encomendas') renderEncomendas();
+  if (page === 'moradores') renderMoradores();
+}
+
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+
+// ─── MODAL RETIRADA ───────────────────────────────────────────────────────────
+let modalIdx = null;
+
+function abrirModal(idx) {
+  modalIdx = idx;
+  const e = encomendas[idx];
+  document.getElementById('modal-desc').textContent = `Encomenda de ${e.morador} (Apto ${e.apto}) — ${e.tipo} via ${e.transportadora}`;
+  document.getElementById('modal-quem').value = '';
+  document.getElementById('modal-retirada').classList.add('open');
+  setTimeout(() => document.getElementById('modal-quem').focus(), 100);
+}
+
+function fecharModal() {
+  document.getElementById('modal-retirada').classList.remove('open');
+  modalIdx = null;
+}
+
+document.addEventListener('click', e => {
+  if (e.target.id === 'modal-retirada') fecharModal();
+});
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg, error = false) {
+  const t = document.getElementById('toast');
+  t.className = 'success-toast' + (error ? ' error' : '');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── MODAL CONFIGURAÇÃO ───────────────────────────────────────────────────────
+function abrirConfig() {
+  document.getElementById('cfg-url').value     = SUPABASE_URL;
+  document.getElementById('cfg-key').value     = SUPABASE_KEY;
+  document.getElementById('cfg-webhook').value = N8N_WEBHOOK_URL;
+  document.getElementById('config-modal').classList.add('open');
+}
+
+function fecharConfig() {
+  document.getElementById('config-modal').classList.remove('open');
+}
+
+function salvarConfig() {
+  SUPABASE_URL    = document.getElementById('cfg-url').value.trim();
+  SUPABASE_KEY    = document.getElementById('cfg-key').value.trim();
+  N8N_WEBHOOK_URL = document.getElementById('cfg-webhook').value.trim();
+
+  localStorage.setItem('pf_url',     SUPABASE_URL);
+  localStorage.setItem('pf_key',     SUPABASE_KEY);
+  localStorage.setItem('pf_webhook', N8N_WEBHOOK_URL);
+
+  fecharConfig();
+  init();
+  showToast('Configuração salva! Carregando dados...');
+}
+
+// ─── START ────────────────────────────────────────────────────────────────────
+init();
 </script>
 </body>
 </html>
