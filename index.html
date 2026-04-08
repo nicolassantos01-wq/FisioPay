@@ -433,6 +433,127 @@
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 999px; }
+
+  /* ── MOBILE RESPONSIVE ── */
+  @media (max-width: 768px) {
+    /* Sidebar vira overlay deslizante */
+    .sidebar {
+      width: 260px;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      z-index: 300;
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    /* Overlay escuro ao abrir sidebar */
+    .sidebar-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 299;
+    }
+    .sidebar-backdrop.open { display: block; }
+
+    /* Main ocupa tudo */
+    .main { margin-left: 0; padding-bottom: 70px; }
+
+    /* Topbar mobile */
+    .topbar { padding: 14px 16px; }
+    .topbar-actions .btn-ghost span { display: none; }
+
+    /* Botão hamburguer */
+    .menu-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); cursor: pointer;
+      font-size: 16px; color: var(--text2); flex-shrink: 0;
+      margin-right: 10px;
+    }
+
+    /* Content padding menor */
+    .content { padding: 16px; }
+
+    /* Stats em 2 colunas */
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stat-card { padding: 14px 16px; }
+    .stat-value { font-size: 22px; }
+
+    /* Formulário coluna única */
+    .form-grid { grid-template-columns: 1fr; }
+    .form-card { padding: 16px; max-width: 100%; }
+
+    /* Tabelas viram cards empilhados */
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tr {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin: 0 0 10px 0;
+      padding: 14px;
+      position: relative;
+    }
+    tr:hover td { background: transparent; }
+    td {
+      padding: 3px 0;
+      border: none;
+      font-size: 13px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    td::before {
+      content: attr(data-label);
+      font-size: 10px; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      min-width: 80px; flex-shrink: 0;
+    }
+    td:first-child { margin-bottom: 6px; }
+    td:first-child::before { display: none; }
+    td:first-child .primary { font-size: 14px; }
+
+    /* Status + botão retirar no card */
+    td[data-label="Status"],
+    td[data-label="Retirada por"] {
+      flex-wrap: wrap;
+    }
+
+    /* Bottom nav */
+    .bottom-nav {
+      display: flex;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      z-index: 200; height: 64px;
+    }
+    .bottom-nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px; cursor: pointer;
+      color: var(--text3); font-size: 10px;
+      transition: color 0.15s; user-select: none;
+      position: relative;
+    }
+    .bottom-nav-item.active { color: var(--accent); }
+    .bottom-nav-item .bnav-icon { font-size: 18px; }
+    .bottom-nav-item .bnav-badge {
+      position: absolute; top: 8px; right: calc(50% - 16px);
+      background: var(--accent); color: #0a1a0f;
+      font-size: 9px; font-weight: 700;
+      padding: 1px 5px; border-radius: 999px;
+      font-family: var(--mono);
+    }
+
+    /* Toast bottom maior */
+    .success-toast { bottom: 76px; right: 16px; left: 16px; }
+
+    /* Modal full em mobile */
+    .modal { width: 92vw; padding: 20px; }
+  }
+
+  /* Desktop: esconder bottom nav e menu btn */
+  @media (min-width: 769px) {
+    .bottom-nav { display: none; }
+    .menu-btn { display: none; }
+    .sidebar-backdrop { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -475,9 +596,12 @@
 
 <div class="main">
   <div class="topbar">
-    <div>
-      <div class="page-title" id="page-title">Dashboard</div>
-      <div class="page-sub" id="page-sub">Visão geral do dia</div>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <div class="menu-btn" onclick="toggleSidebar()">☰</div>
+      <div>
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="page-sub" id="page-sub">Visão geral do dia</div>
+      </div>
     </div>
     <div class="topbar-actions">
       <button class="btn btn-ghost" onclick="navigate('registrar', document.querySelector('[onclick*=\"registrar\"]'))">＋ Nova encomenda</button>
@@ -622,9 +746,30 @@
     </div>
 
   </div>
-</div>
+</div><!-- end main -->
 
-<div class="modal-overlay" id="modal-retirada">
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+<!-- Bottom Nav (mobile only) -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-item active" id="bnav-dashboard" onclick="navigate('dashboard', this, true)">
+    <span class="bnav-icon">▦</span>
+    <span>Dashboard</span>
+  </div>
+  <div class="bottom-nav-item" id="bnav-registrar" onclick="navigate('registrar', this, true)">
+    <span class="bnav-icon">＋</span>
+    <span>Registrar</span>
+  </div>
+  <div class="bottom-nav-item" id="bnav-encomendas" onclick="navigate('encomendas', this, true)">
+    <span class="bnav-icon">◫</span>
+    <span>Encomendas</span>
+    <span class="bnav-badge" id="bnav-badge">3</span>
+  </div>
+  <div class="bottom-nav-item" id="bnav-moradores" onclick="navigate('moradores', this, true)">
+    <span class="bnav-icon">◎</span>
+    <span>Moradores</span>
+  </div>
+</nav> id="modal-retirada">
   <div class="modal">
     <div class="modal-title">Confirmar retirada</div>
     <div class="modal-sub" id="modal-desc">Marque quem retirou a encomenda na portaria.</div>
@@ -688,13 +833,12 @@ function renderDashboard() {
     return `
     <tr>
       <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
-      <td>${e.entregador}</td>
-      <td>${e.tipo}</td>
-      <td class="mono">${e.hora}</td>
-      <td style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${badgeHtml(e.status)} ${acaoBotao}</td>
+      <td data-label="Entregador">${e.entregador}</td>
+      <td data-label="Tipo">${e.tipo}</td>
+      <td data-label="Horário" class="mono">${e.hora}</td>
+      <td data-label="Status" style="flex-wrap:wrap;gap:6px;">${badgeHtml(e.status)} ${acaoBotao}</td>
     </tr>`;
   }).join('');
-  // update stats
   const pendentes = encomendas.filter(e => e.status !== 'Retirado').length;
   document.getElementById('stat-pendentes').textContent = pendentes;
 }
@@ -709,12 +853,12 @@ function renderEncomendas() {
     return `
     <tr>
       <td><div class="primary">${e.morador}</div><div class="mono">Apto ${e.apto}</div></td>
-      <td>${e.entregador}</td>
-      <td>${e.tipo}</td>
-      <td>${e.transportadora}</td>
-      <td class="mono">${e.hora}</td>
-      <td>${badgeHtml(e.status)}</td>
-      <td>${retiradaInfo}</td>
+      <td data-label="Entregador">${e.entregador}</td>
+      <td data-label="Tipo">${e.tipo}</td>
+      <td data-label="Transportadora">${e.transportadora}</td>
+      <td data-label="Horário" class="mono">${e.hora}</td>
+      <td data-label="Status">${badgeHtml(e.status)}</td>
+      <td data-label="Retirada por">${retiradaInfo}</td>
     </tr>`;
   }).join('');
   document.getElementById('total-label').textContent = `${encomendas.length} registros`;
@@ -740,11 +884,27 @@ const pageTitles = {
   moradores:  { title: 'Moradores',              sub: 'Cadastro do condomínio' },
 };
 
-function navigate(page, el) {
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+
+function navigate(page, el, fromBottomNav = false) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + page).classList.add('active');
-  if (el) el.classList.add('active');
+  // sync sidebar nav
+  const sidebarItem = document.querySelector(`.nav-item[onclick*="${page}"]`);
+  if (sidebarItem) sidebarItem.classList.add('active');
+  // sync bottom nav
+  const bnavItem = document.getElementById('bnav-' + page);
+  if (bnavItem) bnavItem.classList.add('active');
+  // if came from sidebar item, close sidebar on mobile
+  if (!fromBottomNav && el) {
+    el.classList.add('active');
+    if (window.innerWidth <= 768) toggleSidebar();
+  }
   const p = pageTitles[page];
   document.getElementById('page-title').textContent = p.title;
   document.getElementById('page-sub').textContent = p.sub;
@@ -778,9 +938,10 @@ function registrar() {
 
   document.getElementById('stat-hoje').textContent = encomendas.length;
   document.getElementById('badge-count').textContent = encomendas.length;
+  document.getElementById('bnav-badge').textContent = encomendas.length;
 
   showToast(`Encomenda de ${nome} registrada! WhatsApp enviado ✓`);
-  navigate('encomendas', document.querySelector('[onclick*="encomendas"]'));
+  navigate('encomendas');
 }
 
 function showToast(msg, error = false) {
